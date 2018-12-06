@@ -41,7 +41,7 @@ func GenerateKey(length int) string {
 
 // PutKey
 func PutKey(key, payload string, baseserver string) *http.Request {
-	uri := baseserver + key
+	uri := baseserver + "store/" + key
 	data := strings.NewReader(payload)
 	log.Println(uri)
 	req, err := http.NewRequest(http.MethodPut, uri, data)
@@ -84,7 +84,7 @@ func GetKeyClient(key, BaseClient string) *http.Request {
 
 // GetKey
 func GetKey(key, baseserver string) *http.Request {
-	uri := baseserver + key
+	uri := baseserver + "store/" + key
 	fmt.Println(uri)
 	req, err := http.NewRequest(http.MethodGet, uri, nil)
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -19,11 +20,12 @@ const (
 	BaseServer2 = "http://127.0.0.1:4245/"
 	BaseServer3 = "http://127.0.0.1:4246/"
 	// BaseClient Hyperdrive client base url
-	BaseClient = "http://localhost:8889/"
+	BaseClient         = "http://localhost:8889/"
+	maxFileDescriptors = 1000
 )
 
 // performPutGet
-func performPutGet(client *http.Client, baseserver string, nrkeys int, wg *sync.WaitGroup) {
+func performPutGet(client *http.Client, baseserver string, nrkeys int, payload string, maxChan chan bool, wg *sync.WaitGroup) {
 	// Increment the number of goroutines to wait for
 	wg.Add(1)
 
@@ -34,8 +36,8 @@ func performPutGet(client *http.Client, baseserver string, nrkeys int, wg *sync.
 	// defer wait group done
 	defer log.Println("End of performPutGet ", number)
 	defer wg.Done()
+	defer func(maxChan chan bool) { <-maxChan }(maxChan)
 
-	payload := "data"
 	for elt := 0; elt < nrkeys; elt++ {
 		key := utils.GenerateKey(64)
 
@@ -48,16 +50,17 @@ func performPutGet(client *http.Client, baseserver string, nrkeys int, wg *sync.
 			log.Fatal(err)
 		}
 		res.Body.Close()
+		/*
+			// Build GET request
+			getRequest := utils.GetKey(key, baseserver)
+			log.Println("Get key: ", key)
+			res2, err2 := client.Do(getRequest)
 
-		// Build GET request
-		getRequest := utils.GetKey(key, baseserver)
-		log.Println("Get key: ", key)
-		res2, err2 := client.Do(getRequest)
-
-		if res2.StatusCode != 200 {
-			log.Fatal(err2)
-		}
-		res2.Body.Close()
+			if res2.StatusCode != 200 {
+				log.Fatal(err2)
+			}
+			res2.Body.Close()
+		*/
 	}
 }
 
@@ -71,6 +74,7 @@ func getKeysIndex(client *http.Client, baseserver string) utils.ListKeys {
 	req.Header.Set("Accept", "application/json")
 
 	res, _ := client.Do(req)
+
 	defer res.Body.Close()
 
 	body, _ := ioutil.ReadAll(res.Body)
@@ -100,7 +104,7 @@ func getGroupsIndex(client *http.Client, baseserver string) utils.ListGroups {
 }
 
 // performPutGetClient hyperdrive client
-func performPutGetClient(client *http.Client, baseclient string, nrkeys int, payload string, wg *sync.WaitGroup) {
+func performPutGetClient(client *http.Client, baseclient string, nrkeys int, payload string, maxChan chan bool, wg *sync.WaitGroup) {
 	// Increment the number of goroutines to wait for
 	wg.Add(1)
 
@@ -111,6 +115,7 @@ func performPutGetClient(client *http.Client, baseclient string, nrkeys int, pay
 	// defer wait group done
 	defer log.Println("End of performPutGet ", number)
 	defer wg.Done()
+	defer func(maxChan chan bool) { <-maxChan }(maxChan)
 
 	for elt := 0; elt < nrkeys; elt++ {
 		key := fmt.Sprintf("dir-%d/obj-%d", elt, number)
@@ -125,16 +130,16 @@ func performPutGetClient(client *http.Client, baseclient string, nrkeys int, pay
 			log.Println("Put key error: ", err)
 		}
 		res.Body.Close()
+		/*
+			// Build GET request
+			getRequest := utils.GetKeyClient(key, baseclient)
+			log.Println("Get key: ", key)
+			res2, err2 := client.Do(getRequest)
 
-		// Build GET request
-		getRequest := utils.GetKeyClient(key, baseclient)
-		log.Println("Get key: ", key)
-		res2, err2 := client.Do(getRequest)
-
-		if res2.StatusCode != 200 {
-			log.Println("Get key error:", err2)
-		}
-		res2.Body.Close()
+			if res2.StatusCode != 200 {
+				log.Println("Get key error:", err2)
+			}
+			res2.Body.Close()*/
 	}
 }
 
@@ -144,16 +149,16 @@ func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 
 }
 
-func main_server() {
+func mainServer(baseserver string, nrroutines int, payloadSize int) {
 	// Set values
-	nrroutines := 10
 	nrkeys := 10000
-	baseserver := BaseServer1
+	payload := utils.RandomString(payloadSize)
 
 	log.Println("Launch injector routines: ", nrroutines)
 
 	// Create wait group object
 	var wg sync.WaitGroup
+	maxChan := make(chan bool, maxFileDescriptors)
 
 	// HTTP client
 	client := &http.Client{}
@@ -161,7 +166,7 @@ func main_server() {
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
-		go performPutGet(client, baseserver, nrkeys, &wg)
+		go performPutGet(client, baseserver, nrkeys, payload, maxChan, &wg)
 	}
 
 	wg.Wait()
@@ -175,17 +180,17 @@ func main_server() {
 	log.Println(len(keys.Keys))
 }
 
-func main() {
+func mainClient(baseclient string, nrroutines int, payloadSize int) {
 
 	client := &http.Client{}
-	nrroutines := 10
 	nrkeys := 10000
-	payload := utils.RandomString(1024 * 128)
+	payload := utils.RandomString(payloadSize)
 	// Create wait group object
 	var wg sync.WaitGroup
-
+	maxChan := make(chan bool, maxFileDescriptors)
 	for i := 0; i < nrroutines; i++ {
-		go performPutGetClient(client, BaseClient, nrkeys, payload, &wg)
+		maxChan <- true
+		go performPutGetClient(client, baseclient, nrkeys, payload, maxChan, &wg)
 	}
 
 	wg.Wait()
@@ -197,4 +202,24 @@ func main() {
 	log.Println("Groups hd1: ", len(grp1.Groups))
 	log.Println("Groups hd2: ", len(grp2.Groups))
 	log.Println("Groups hd3: ", len(grp3.Groups))
+}
+
+func main() {
+	workersPtr := flag.Int("workers", 64, "number of workers in parallel")
+	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
+	payloadSizePtr := flag.Int("size", 1024*1024, "Payload size")
+
+	flag.Parse()
+
+	if *typePtr == "server" {
+		mainServer(BaseServer1, *workersPtr, *payloadSizePtr)
+	} else if *typePtr == "client" {
+		for nrclient := 0; nrclient < 8; nrclient++ {
+			port := 8888 + nrclient
+			baseclient := "http://localhost:" + string(port)
+			mainClient(baseclient, *workersPtr, *payloadSizePtr)
+		}
+
+	}
+
 }
