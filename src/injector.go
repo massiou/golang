@@ -160,10 +160,9 @@ func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 }
 
 func mainServer(baseserver string, nrroutines int, payloadSize int) {
-	defer wgMain.Done()
 	// Set values
 	nrkeys := 1 // number of keys per routine
-	payload := utils.RandomString(payloadSize)
+	//payload := utils.RandomString(payloadSize)
 
 	log.Println("Launch injector routines: ", nrroutines)
 
@@ -174,10 +173,12 @@ func mainServer(baseserver string, nrroutines int, payloadSize int) {
 	// HTTP client
 	client := &http.Client{}
 
+	payload, _ := ioutil.ReadFile("/usr/bin/gdb")
+
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
-		go performPutGet(client, baseserver, nrkeys, payload, maxChan, &wg)
+		go performPutGet(client, baseserver, nrkeys, string(payload), maxChan, &wg)
 	}
 
 	wg.Wait()
@@ -231,7 +232,7 @@ func main() {
 
 	// Main call
 	if *typePtr == "server" {
-		go mainServer(BaseServer1, *workersPtr, *payloadSizePtr)
+		mainServer(BaseServer1, *workersPtr, *payloadSizePtr)
 	} else if *typePtr == "client" {
 		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
 			wgMain.Add(1)
