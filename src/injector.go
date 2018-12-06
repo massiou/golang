@@ -21,7 +21,7 @@ const (
 	BaseServer2 = "http://127.0.0.1:4245/"
 	BaseServer3 = "http://127.0.0.1:4246/"
 	// BaseClient Hyperdrive client base url
-	BaseClient         = "http://localhost:8889/"
+	BaseClient         = "http://127.0.0.1:8889/"
 	PortClient         = 8889
 	maxFileDescriptors = 1000
 )
@@ -237,7 +237,7 @@ func main() {
 	} else if *typePtr == "client" {
 		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
 			port := PortClient + nrclient
-			baseclient := "http://localhost:" + strconv.Itoa(port) + "/"
+			baseclient := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 			go mainClient(baseclient, *workersPtr, *payloadSizePtr, &wgMain)
 		}
 
