@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -230,7 +231,7 @@ func main() {
 	} else if *typePtr == "client" {
 		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
 			port := PortClient + nrclient
-			baseclient := "http://localhost:" + string(port)
+			baseclient := "http://localhost:" + strconv.Itoa(port) + "/"
 			mainClient(baseclient, *workersPtr, *payloadSizePtr)
 		}
 
