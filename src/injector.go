@@ -27,7 +27,7 @@ const (
 )
 
 // performPutGet
-func performPutGet(client *http.Client, baseserver string, nrkeys int, payload string, maxChan chan bool, wg *sync.WaitGroup) {
+func performPutGet(client *http.Client, baseserver string, nrkeys int, payloadFile string, maxChan chan bool, wg *sync.WaitGroup) {
 	// Increment the number of goroutines to wait for
 	wg.Add(1)
 
@@ -44,7 +44,7 @@ func performPutGet(client *http.Client, baseserver string, nrkeys int, payload s
 		key := utils.GenerateKey(64)
 
 		// Build PUT request
-		putRequest := utils.PutKey(key, payload, baseserver)
+		putRequest := utils.PutKey(key, payloadFile, baseserver)
 		log.Println("Put key: ", key)
 		res, err := client.Do(putRequest)
 
@@ -196,13 +196,13 @@ func mainClient(baseclient string, nrroutines int, payloadFile string) {
 
 	client := &http.Client{}
 	nrkeys := 1 // Number of keys per routine
-	payload, _ := ioutil.ReadFile(payloadFile)
+
 	// Create wait group object
 	var wg sync.WaitGroup
 	maxChan := make(chan bool, maxFileDescriptors)
 	for i := 0; i < nrroutines; i++ {
 		maxChan <- true
-		go performPutGetClient(client, baseclient, nrkeys, string(payload), maxChan, &wg)
+		go performPutGetClient(client, baseclient, nrkeys, payloadFile, maxChan, &wg)
 	}
 
 	wg.Wait()

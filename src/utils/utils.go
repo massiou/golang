@@ -2,9 +2,11 @@ package utils
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -40,13 +42,21 @@ func GenerateKey(length int) string {
 }
 
 // PutKey hyperdrive server
-func PutKey(key, payload string, baseserver string) *http.Request {
+func PutKey(key, payloadFile string, baseserver string) *http.Request {
 	uri := baseserver + "store/" + key
-	data := strings.NewReader(payload)
+
+	payload, _ := ioutil.ReadFile(payloadFile)
+	data := strings.NewReader(string(payload))
+
 	log.Println(uri)
 	req, err := http.NewRequest(http.MethodPut, uri, data)
 
-	headersValue := fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", len(payload))
+	fi, _ := os.Stat(payloadFile)
+
+	// get the size
+	size := fi.Size()
+
+	headersValue := fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
 	req.Header.Set("Content-type", headersValue)
 
 	if err != nil {
