@@ -22,7 +22,7 @@ type ListGroups struct {
 	Groups []string `json: "groups"`
 }
 
-// GenerateKey
+// GenerateKey generates hyperdrive server key
 func GenerateKey(length int) string {
 	// Change seed explicitly
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -39,7 +39,7 @@ func GenerateKey(length int) string {
 	return ret
 }
 
-// PutKey
+// PutKey hyperdrive server
 func PutKey(key, payload string, baseserver string) *http.Request {
 	uri := baseserver + "store/" + key
 	data := strings.NewReader(payload)
@@ -50,7 +50,7 @@ func PutKey(key, payload string, baseserver string) *http.Request {
 	req.Header.Set("Content-type", headersValue)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return req
@@ -64,7 +64,7 @@ func PutKeyClient(key, payload, baseclient string) *http.Request {
 	req, err := http.NewRequest(http.MethodPut, uri, data)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	return req
 }
@@ -76,13 +76,13 @@ func GetKeyClient(key, BaseClient string) *http.Request {
 	log.Println(uri)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return req
 }
 
-// GetKey
+// GetKey hyperdrive server
 func GetKey(key, baseserver string) *http.Request {
 	uri := baseserver + "store/" + key
 	fmt.Println(uri)
@@ -96,7 +96,7 @@ func GetKey(key, baseserver string) *http.Request {
 	return req
 }
 
-// DelKey
+// DelKey hyperdrive server
 func DelKey(key, baseserver string) *http.Request {
 	uri := baseserver + key
 	fmt.Println(uri)
@@ -128,7 +128,7 @@ func randomInt(min, max int) int {
 	return min + rand.Intn(max-min)
 }
 
-// Generate a random string of A-Z chars with len = l
+// RandomString generates a random string of A-Z chars with len = l
 func RandomString(len int) string {
 	bytes := make([]byte, len)
 	for i := 0; i < len; i++ {

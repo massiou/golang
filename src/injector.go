@@ -21,6 +21,7 @@ const (
 	BaseServer3 = "http://127.0.0.1:4246/"
 	// BaseClient Hyperdrive client base url
 	BaseClient         = "http://localhost:8889/"
+	PortClient         = 8889
 	maxFileDescriptors = 1000
 )
 
@@ -34,7 +35,7 @@ func performPutGet(client *http.Client, baseserver string, nrkeys int, payload s
 	number := rand.Intn(1000)
 
 	// defer wait group done
-	defer log.Println("End of performPutGet ", number)
+	defer log.Println("End of performPutGet ", number, baseserver)
 	defer wg.Done()
 	defer func(maxChan chan bool) { <-maxChan }(maxChan)
 
@@ -46,8 +47,12 @@ func performPutGet(client *http.Client, baseserver string, nrkeys int, payload s
 		log.Println("Put key: ", key)
 		res, err := client.Do(putRequest)
 
-		if res.StatusCode != 204 {
+		if err != nil {
 			log.Fatal(err)
+		}
+
+		if res.StatusCode != 204 {
+			log.Fatal(res.StatusCode)
 		}
 		res.Body.Close()
 		/*
@@ -113,7 +118,7 @@ func performPutGetClient(client *http.Client, baseclient string, nrkeys int, pay
 	number := rand.Intn(1000)
 
 	// defer wait group done
-	defer log.Println("End of performPutGet ", number)
+	defer log.Println("End of performPutGet ", number, baseclient)
 	defer wg.Done()
 	defer func(maxChan chan bool) { <-maxChan }(maxChan)
 
@@ -124,6 +129,10 @@ func performPutGetClient(client *http.Client, baseclient string, nrkeys int, pay
 		putRequest := utils.PutKeyClient(key, payload, baseclient)
 		log.Println("Put key: ", key)
 		res, err := client.Do(putRequest)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		if res.StatusCode != 204 {
 			log.Println(res)
@@ -151,7 +160,7 @@ func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 
 func mainServer(baseserver string, nrroutines int, payloadSize int) {
 	// Set values
-	nrkeys := 10000
+	nrkeys := 1 // number of keys per routine
 	payload := utils.RandomString(payloadSize)
 
 	log.Println("Launch injector routines: ", nrroutines)
@@ -180,10 +189,11 @@ func mainServer(baseserver string, nrroutines int, payloadSize int) {
 	log.Println(len(keys.Keys))
 }
 
+// mainClient perform http requests from hyperdrive client
 func mainClient(baseclient string, nrroutines int, payloadSize int) {
 
 	client := &http.Client{}
-	nrkeys := 10000
+	nrkeys := 1 // Number of keys per routine
 	payload := utils.RandomString(payloadSize)
 	// Create wait group object
 	var wg sync.WaitGroup
@@ -205,17 +215,21 @@ func mainClient(baseclient string, nrroutines int, payloadSize int) {
 }
 
 func main() {
+
+	// Arguments
 	workersPtr := flag.Int("workers", 64, "number of workers in parallel")
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
 	payloadSizePtr := flag.Int("size", 1024*1024, "Payload size")
+	nrclientPtr := flag.Int("nrclients", 1, "number of HD clients")
 
 	flag.Parse()
 
+	// Main call
 	if *typePtr == "server" {
 		mainServer(BaseServer1, *workersPtr, *payloadSizePtr)
 	} else if *typePtr == "client" {
-		for nrclient := 0; nrclient < 8; nrclient++ {
-			port := 8888 + nrclient
+		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
+			port := PortClient + nrclient
 			baseclient := "http://localhost:" + string(port)
 			mainClient(baseclient, *workersPtr, *payloadSizePtr)
 		}
