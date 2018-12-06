@@ -159,7 +159,9 @@ func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 
 }
 
-func mainServer(baseserver string, nrroutines int, payloadSize int) {
+func mainServer(baseserver string, nrroutines int, payloadSize int, wgMain *sync.WaitGroup) {
+	wgMain.Add(1)
+	defer wgMain.Done()
 	// Set values
 	nrkeys := 1 // number of keys per routine
 	payload := utils.RandomString(payloadSize)
@@ -191,7 +193,9 @@ func mainServer(baseserver string, nrroutines int, payloadSize int) {
 }
 
 // mainClient perform http requests from hyperdrive client
-func mainClient(baseclient string, nrroutines int, payloadSize int) {
+func mainClient(baseclient string, nrroutines int, payloadSize int, wgMain *sync.WaitGroup) {
+	wgMain.Add(1)
+	defer wgMain.Done()
 
 	client := &http.Client{}
 	nrkeys := 1 // Number of keys per routine
@@ -225,16 +229,19 @@ func main() {
 
 	flag.Parse()
 
+	var wgMain sync.WaitGroup
+
 	// Main call
 	if *typePtr == "server" {
-		mainServer(BaseServer1, *workersPtr, *payloadSizePtr)
+		go mainServer(BaseServer1, *workersPtr, *payloadSizePtr, &wgMain)
 	} else if *typePtr == "client" {
 		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
 			port := PortClient + nrclient
 			baseclient := "http://localhost:" + strconv.Itoa(port) + "/"
-			mainClient(baseclient, *workersPtr, *payloadSizePtr)
+			go mainClient(baseclient, *workersPtr, *payloadSizePtr, &wgMain)
 		}
 
 	}
+	wgMain.Wait()
 
 }
