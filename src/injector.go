@@ -159,10 +159,10 @@ func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 
 }
 
-func mainServer(baseserver string, nrroutines int, payloadSize int) {
+func mainServer(baseserver string, nrroutines int, payloadFile string) {
 	// Set values
 	nrkeys := 1 // number of keys per routine
-	//payload := utils.RandomString(payloadSize)
+	payload, _ := ioutil.ReadFile(payloadFile)
 
 	log.Println("Launch injector routines: ", nrroutines)
 
@@ -172,8 +172,6 @@ func mainServer(baseserver string, nrroutines int, payloadSize int) {
 
 	// HTTP client
 	client := &http.Client{}
-
-	payload, _ := ioutil.ReadFile("/usr/bin/gdb")
 
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
@@ -193,18 +191,18 @@ func mainServer(baseserver string, nrroutines int, payloadSize int) {
 }
 
 // mainClient perform http requests from hyperdrive client
-func mainClient(baseclient string, nrroutines int, payloadSize int) {
+func mainClient(baseclient string, nrroutines int, payloadFile string) {
 	defer wgMain.Done()
 
 	client := &http.Client{}
 	nrkeys := 1 // Number of keys per routine
-	payload := utils.RandomString(payloadSize)
+	payload, _ := ioutil.ReadFile(payloadFile)
 	// Create wait group object
 	var wg sync.WaitGroup
 	maxChan := make(chan bool, maxFileDescriptors)
 	for i := 0; i < nrroutines; i++ {
 		maxChan <- true
-		go performPutGetClient(client, baseclient, nrkeys, payload, maxChan, &wg)
+		go performPutGetClient(client, baseclient, nrkeys, string(payload), maxChan, &wg)
 	}
 
 	wg.Wait()
@@ -225,20 +223,20 @@ func main() {
 	// Arguments
 	workersPtr := flag.Int("workers", 64, "number of workers in parallel")
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
-	payloadSizePtr := flag.Int("size", 1024*1024, "Payload size")
+	payloadPtr := flag.String("payload file", "/etc/hosts", "payload file")
 	nrclientPtr := flag.Int("nrclients", 1, "number of HD clients")
 
 	flag.Parse()
 
 	// Main call
 	if *typePtr == "server" {
-		mainServer(BaseServer1, *workersPtr, *payloadSizePtr)
+		mainServer(BaseServer1, *workersPtr, *payloadPtr)
 	} else if *typePtr == "client" {
 		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
 			wgMain.Add(1)
 			port := PortClient + nrclient
 			baseclient := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
-			go mainClient(baseclient, *workersPtr, *payloadSizePtr)
+			go mainClient(baseclient, *workersPtr, *payloadPtr)
 		}
 
 	}
