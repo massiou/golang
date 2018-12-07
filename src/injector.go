@@ -162,7 +162,6 @@ func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 func mainServer(baseserver string, nrroutines int, payloadFile string) {
 	// Set values
 	nrkeys := 1 // number of keys per routine
-	payload, _ := ioutil.ReadFile(payloadFile)
 
 	log.Println("Launch injector routines: ", nrroutines)
 
@@ -176,7 +175,7 @@ func mainServer(baseserver string, nrroutines int, payloadFile string) {
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
-		go performPutGet(client, baseserver, nrkeys, string(payload), maxChan, &wg)
+		go performPutGet(client, baseserver, nrkeys, payloadFile, maxChan, &wg)
 	}
 
 	wg.Wait()
@@ -223,7 +222,7 @@ func main() {
 	// Arguments
 	workersPtr := flag.Int("workers", 64, "number of workers in parallel")
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
-	payloadPtr := flag.String("payload file", "/etc/hosts", "payload file")
+	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
 	nrclientPtr := flag.Int("nrclients", 1, "number of HD clients")
 
 	flag.Parse()
