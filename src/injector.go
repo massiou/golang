@@ -53,10 +53,11 @@ func performPutGet(baseserver string, nrkeys int, payloadFile string, maxChan ch
 			log.Fatal(err)
 		}
 
+		defer res.Body.Close()
+
 		if res.StatusCode != 204 {
 			log.Fatal(res.StatusCode)
 		}
-		res.Body.Close()
 		/*
 			// Build GET request
 			getRequest := utils.GetKey(key, baseserver)
@@ -100,7 +101,12 @@ func getGroupsIndex(client *http.Client, baseserver string) utils.ListGroups {
 
 	req.Header.Set("Accept", "application/json")
 
-	res, _ := client.Do(req)
+	res, err := client.Do(req)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	defer res.Body.Close()
 
 	body, _ := ioutil.ReadAll(res.Body)
@@ -136,11 +142,12 @@ func performPutGetClient(baseclient string, nrkeys int, payload string, maxChan 
 			log.Fatal(err)
 		}
 
+		defer res.Body.Close()
+
 		if res.StatusCode != 204 {
 			log.Println(res)
 			log.Println("Put key error: ", err)
 		}
-		res.Body.Close()
 		/*
 			// Build GET request
 			getRequest := utils.GetKeyClient(key, baseclient)
@@ -234,8 +241,7 @@ func main() {
 			baseclient := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 			go mainClient(baseclient, *workersPtr, *nrkeysPtr, *payloadPtr)
 		}
-
+		wgMain.Wait()
 	}
-	wgMain.Wait()
 
 }
