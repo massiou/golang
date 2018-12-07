@@ -51,17 +51,21 @@ func PutKey(key, payloadFile string, baseserver string) *http.Request {
 	log.Println(uri)
 	req, err := http.NewRequest(http.MethodPut, uri, data)
 
-	fi, _ := os.Stat(payloadFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fi, err2 := os.Stat(payloadFile)
+
+	if err2 != nil {
+		log.Fatal(err2)
+	}
 
 	// get the size
 	size := fi.Size()
 
 	headersValue := fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
 	req.Header.Set("Content-type", headersValue)
-
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	return req
 }

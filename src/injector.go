@@ -161,10 +161,7 @@ func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 
 }
 
-func mainServer(baseserver string, nrroutines int, payloadFile string) {
-	// Set values
-	nrkeys := 1 // number of keys per routine
-
+func mainServer(baseserver string, nrroutines int, nrkeys int, payloadFile string) {
 	log.Println("Launch injector routines: ", nrroutines)
 
 	// Create wait group object
@@ -193,11 +190,10 @@ func mainServer(baseserver string, nrroutines int, payloadFile string) {
 }
 
 // mainClient perform http requests from hyperdrive client
-func mainClient(baseclient string, nrroutines int, payloadFile string) {
+func mainClient(baseclient string, nrroutines int, nrkeys int, payloadFile string) {
 	defer wgMain.Done()
 
 	client := &http.Client{}
-	nrkeys := 1 // Number of keys per routine
 
 	// Create wait group object
 	var wg sync.WaitGroup
@@ -227,18 +223,19 @@ func main() {
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
 	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
 	nrclientPtr := flag.Int("nrclients", 1, "number of HD clients")
+	nrkeysPtr := flag.Int("nrkeys", 1, "number of keys per goroutine")
 
 	flag.Parse()
 
 	// Main call
 	if *typePtr == "server" {
-		mainServer(BaseServer1, *workersPtr, *payloadPtr)
+		mainServer(BaseServer1, *workersPtr, *nrkeysPtr, *payloadPtr)
 	} else if *typePtr == "client" {
 		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
 			wgMain.Add(1)
 			port := PortClient + nrclient
 			baseclient := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
-			go mainClient(baseclient, *workersPtr, *payloadPtr)
+			go mainClient(baseclient, *workersPtr, *nrkeysPtr, *payloadPtr)
 		}
 
 	}
