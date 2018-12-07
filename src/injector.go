@@ -203,6 +203,7 @@ func mainClient(baseclient string, nrroutines int, nrkeys int, payloadFile strin
 	maxChan := make(chan bool, maxFileDescriptors)
 	for i := 0; i < nrroutines; i++ {
 		maxChan <- true
+		wg.Add(1)
 		go performPutGetClient(baseclient, nrkeys, payloadFile, maxChan, &wg)
 	}
 
