@@ -144,7 +144,7 @@ func performPutGetClient(baseclient string, nrkeys int, payload string, maxChan 
 
 		defer res.Body.Close()
 
-		if res.StatusCode != 204 {
+		if res.StatusCode != 200 {
 			log.Println(res)
 			log.Println("Put key error: ", err)
 		}
