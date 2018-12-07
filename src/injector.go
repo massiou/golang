@@ -122,7 +122,7 @@ func performPutGetClient(baseclient string, nrkeys int, payload string, maxChan 
 	// defer wait group done
 	defer log.Println("End of performPutGet ", number, baseclient)
 	defer wg.Done()
-	defer func(maxChan chan bool) { <-maxChan }(maxChan)
+	// defer func(maxChan chan bool) { <-maxChan }(maxChan)
 
 	for elt := 0; elt < nrkeys; elt++ {
 		key := fmt.Sprintf("dir-%d/obj-%d", elt, number)
@@ -168,8 +168,6 @@ func mainServer(baseserver string, nrroutines int, nrkeys int, payloadFile strin
 	var wg sync.WaitGroup
 	maxChan := make(chan bool, maxFileDescriptors)
 
-	// HTTP client
-
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
@@ -193,8 +191,6 @@ func mainServer(baseserver string, nrroutines int, nrkeys int, payloadFile strin
 func mainClient(baseclient string, nrroutines int, nrkeys int, payloadFile string) {
 	defer wgMain.Done()
 
-	client := &http.Client{}
-
 	// Create wait group object
 	var wg sync.WaitGroup
 	maxChan := make(chan bool, maxFileDescriptors)
@@ -204,14 +200,15 @@ func mainClient(baseclient string, nrroutines int, nrkeys int, payloadFile strin
 	}
 
 	wg.Wait()
+	/*
+		grp1 := getGroupsIndex(client, BaseServer1)
+		grp2 := getGroupsIndex(client, BaseServer2)
+		grp3 := getGroupsIndex(client, BaseServer3)
 
-	grp1 := getGroupsIndex(client, BaseServer1)
-	grp2 := getGroupsIndex(client, BaseServer2)
-	grp3 := getGroupsIndex(client, BaseServer3)
-
-	log.Println("Groups hd1: ", len(grp1.Groups))
-	log.Println("Groups hd2: ", len(grp2.Groups))
-	log.Println("Groups hd3: ", len(grp3.Groups))
+		log.Println("Groups hd1: ", len(grp1.Groups))
+		log.Println("Groups hd2: ", len(grp2.Groups))
+		log.Println("Groups hd3: ", len(grp3.Groups))
+	*/
 }
 
 var wgMain sync.WaitGroup
