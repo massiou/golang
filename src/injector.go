@@ -27,9 +27,10 @@ const (
 )
 
 // performPutGet
-func performPutGet(client *http.Client, baseserver string, nrkeys int, payloadFile string, maxChan chan bool, wg *sync.WaitGroup) {
-	// Increment the number of goroutines to wait for
-	wg.Add(1)
+func performPutGet(baseserver string, nrkeys int, payloadFile string, maxChan chan bool, wg *sync.WaitGroup) {
+
+	defer wg.Done()
+	client := &http.Client{}
 
 	// Store a random number to identify the current instance
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -37,8 +38,8 @@ func performPutGet(client *http.Client, baseserver string, nrkeys int, payloadFi
 
 	// defer wait group done
 	defer log.Println("End of performPutGet ", number, baseserver)
-	defer wg.Done()
-	defer func(maxChan chan bool) { <-maxChan }(maxChan)
+	/* TODO limit number of request */
+	//defer func(maxChan chan bool) { <-maxChan }(maxChan)
 
 	for elt := 0; elt < nrkeys; elt++ {
 		key := utils.GenerateKey(64)
@@ -110,13 +111,13 @@ func getGroupsIndex(client *http.Client, baseserver string) utils.ListGroups {
 }
 
 // performPutGetClient hyperdrive client
-func performPutGetClient(client *http.Client, baseclient string, nrkeys int, payload string, maxChan chan bool, wg *sync.WaitGroup) {
+func performPutGetClient(baseclient string, nrkeys int, payload string, maxChan chan bool, wg *sync.WaitGroup) {
 	// Increment the number of goroutines to wait for
-	wg.Add(1)
 
 	// Store a random number to identify the current instance
 	rand.Seed(time.Now().UTC().UnixNano())
 	number := rand.Intn(1000)
+	client := &http.Client{}
 
 	// defer wait group done
 	defer log.Println("End of performPutGet ", number, baseclient)
@@ -155,6 +156,7 @@ func performPutGetClient(client *http.Client, baseclient string, nrkeys int, pay
 
 // performDelClient hyperdrive client
 func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sync.WaitGroup) {
+	/* XXX Should be done before calling goroutine */
 	wg.Add(1)
 
 }
@@ -170,12 +172,12 @@ func mainServer(baseserver string, nrroutines int, payloadFile string) {
 	maxChan := make(chan bool, maxFileDescriptors)
 
 	// HTTP client
-	client := &http.Client{}
 
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
-		go performPutGet(client, baseserver, nrkeys, payloadFile, maxChan, &wg)
+		wg.Add(1)
+		go performPutGet(baseserver, nrkeys, payloadFile, maxChan, &wg)
 	}
 
 	wg.Wait()
@@ -184,6 +186,7 @@ func mainServer(baseserver string, nrroutines int, payloadFile string) {
 
 	log.Println(int(end) - int(start))
 
+	client := &http.Client{}
 	keys := getKeysIndex(client, BaseServer1)
 
 	log.Println(len(keys.Keys))
@@ -201,7 +204,7 @@ func mainClient(baseclient string, nrroutines int, payloadFile string) {
 	maxChan := make(chan bool, maxFileDescriptors)
 	for i := 0; i < nrroutines; i++ {
 		maxChan <- true
-		go performPutGetClient(client, baseclient, nrkeys, payloadFile, maxChan, &wg)
+		go performPutGetClient(baseclient, nrkeys, payloadFile, maxChan, &wg)
 	}
 
 	wg.Wait()
