@@ -23,6 +23,7 @@ const (
 	// BaseClient Hyperdrive client base url
 	BaseClient         = "http://127.0.0.1:8889/"
 	PortClient         = 8889
+	PortServer         = 4244
 	maxFileDescriptors = 1000
 )
 
@@ -81,7 +82,11 @@ func getKeysIndex(client *http.Client, baseserver string) utils.ListKeys {
 
 	req.Header.Set("Accept", "application/json")
 
-	res, _ := client.Do(req)
+	res, err := client.Do(req)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	defer res.Body.Close()
 
@@ -142,12 +147,11 @@ func performPutGetClient(baseclient string, nrkeys int, payload string, maxChan 
 			log.Fatal(err)
 		}
 
-		defer res.Body.Close()
-
 		if res.StatusCode != 200 {
 			log.Println(res)
 			log.Println("Put key error: ", err)
 		}
+		res.Body.Close()
 		/*
 			// Build GET request
 			getRequest := utils.GetKeyClient(key, baseclient)
@@ -162,9 +166,12 @@ func performPutGetClient(baseclient string, nrkeys int, payload string, maxChan 
 }
 
 // performDelClient hyperdrive client
-func performDelClient(client *http.Client, baseclient string, nrkeys int, wg *sync.WaitGroup) {
+func PerformDelClient(client *http.Client, baseclient string, nrkeys int, wg *sync.WaitGroup) bool {
 	/* XXX Should be done before calling goroutine */
 	wg.Add(1)
+	fmt.Println("OK")
+
+	return true
 
 }
 
@@ -228,13 +235,20 @@ func main() {
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
 	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
 	nrclientPtr := flag.Int("nrclients", 1, "number of HD clients")
+	nrserverPtr := flag.Int("nrservers", 1, "number of HD servers")
 	nrkeysPtr := flag.Int("nrkeys", 1, "number of keys per goroutine")
 
 	flag.Parse()
 
 	// Main call
 	if *typePtr == "server" {
-		mainServer(BaseServer1, *workersPtr, *nrkeysPtr, *payloadPtr)
+		for nrserver := 0; nrserver < *nrserverPtr; nrserver++ {
+			wgMain.Add(1)
+			port := PortServer + nrserver
+			baseserver := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
+			go mainServer(baseserver, *workersPtr, *nrkeysPtr, *payloadPtr)
+		}
+
 	} else if *typePtr == "client" {
 		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
 			wgMain.Add(1)
