@@ -40,18 +40,19 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 	// defer wait group done
 	defer log.Println("End of performPutGet ", number, baseURL)
 
-	key := ""
-
+	key := "defaultKey"
+	log.Println(hdType)
 	for elt := 0; elt < nrkeys; elt++ {
 		if hdType == "server" {
 			key = utils.GenerateKey(64)
 		} else if hdType == "client" {
-			key = fmt.Sprintf("dir-%d/obj-%d", elt, number)
+			key = fmt.Sprintf("dir-%d/obj-%d", number, elt)
 		}
 
 		// Build PUT request
-		putRequest := utils.PutKey(hdType, key, payloadFile, baseURL)
 		log.Println("Put key: ", key)
+		putRequest := utils.PutKey(hdType, key, payloadFile, baseURL)
+
 		res, err := client.Do(putRequest)
 
 		if err != nil {
@@ -172,12 +173,17 @@ func main() {
 
 	// Main call
 	portBase := 0
-	if *typePtr == "server" {
+	switch *typePtr {
+	case "server":
 		portBase = PortServer
-	} else if *typePtr == "client" {
+
+	case "client":
 		portBase = PortClient
 
+	default:
+		panic("Please choose hd-type in {server, client}, found: " + *typePtr)
 	}
+
 	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
 		port := portBase + nrinstances
 		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"

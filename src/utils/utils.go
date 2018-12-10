@@ -56,14 +56,14 @@ func PutKey(hdType string, key, payloadFile string, baseURL string) *http.Reques
 		req, err = http.NewRequest(http.MethodPut, uri, data)
 
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Put Key, uri=", uri, "error:", err)
 		}
 
 		// Payload size is needed
 		fi, err2 := os.Stat(payloadFile)
 
 		if err2 != nil {
-			log.Fatal(err2)
+			log.Fatal("os.Stat() of", payloadFile, "error:", err2)
 		}
 
 		// get the size
@@ -80,6 +80,9 @@ func PutKey(hdType string, key, payloadFile string, baseURL string) *http.Reques
 		if err != nil {
 			log.Fatal(err)
 		}
+
+	default:
+		panic("hd-type must be in {server, client}, found: " + hdType)
 
 	}
 
