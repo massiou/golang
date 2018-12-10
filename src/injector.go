@@ -41,6 +41,7 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 	defer log.Println("End of performPutGet ", number, baseURL)
 
 	key := ""
+
 	for elt := 0; elt < nrkeys; elt++ {
 		if hdType == "server" {
 			key = utils.GenerateKey(64)
@@ -154,11 +155,6 @@ func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payl
 	end := time.Now().Unix()
 
 	log.Println(int(end) - int(start))
-
-	client := &http.Client{}
-	keys := getKeysIndex(client, BaseServer1)
-
-	log.Println(len(keys.Keys))
 }
 
 var wgMain sync.WaitGroup
