@@ -28,7 +28,7 @@ const (
 )
 
 // performPutGet
-func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, maxChan chan bool, wg *sync.WaitGroup) {
+func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 	client := &http.Client{}
@@ -136,18 +136,18 @@ func PerformDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 
 }
 
-func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payloadFile string) {
+func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payloadFile string, wgMain *sync.WaitGroup) {
+	defer wgMain.Done()
 	log.Println("Launch injector routines: ", nrroutines)
 
 	// Create wait group object
 	var wg sync.WaitGroup
-	maxChan := make(chan bool, maxFileDescriptors)
 
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
 		wg.Add(1)
-		go performPutGet(hdType, baseserver, nrkeys, payloadFile, maxChan, &wg)
+		go performPutGet(hdType, baseserver, nrkeys, payloadFile, &wg)
 	}
 
 	wg.Wait()
@@ -182,8 +182,7 @@ func main() {
 		port := portBase + nrinstances
 		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
-		go mainFunc(*typePtr, baseURL, *workersPtr, *nrkeysPtr, *payloadPtr)
+		go mainFunc(*typePtr, baseURL, *workersPtr, *nrkeysPtr, *payloadPtr, &wgMain)
 	}
-
 	wgMain.Wait()
 }
