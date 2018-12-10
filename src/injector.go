@@ -122,7 +122,7 @@ func getGroupsIndex(client *http.Client, baseserver string) utils.ListGroups {
 }
 
 // performPutGetClient hyperdrive client
-func performPutGetClient(baseclient string, nrkeys int, payload string, maxChan chan bool, wg *sync.WaitGroup) {
+func performPutGetClient(baseclient string, nrkeys int, payloadFile string, maxChan chan bool, wg *sync.WaitGroup) {
 	// Increment the number of goroutines to wait for
 
 	// Store a random number to identify the current instance
@@ -139,7 +139,7 @@ func performPutGetClient(baseclient string, nrkeys int, payload string, maxChan 
 		key := fmt.Sprintf("dir-%d/obj-%d", elt, number)
 
 		// Build PUT request
-		putRequest := utils.PutKeyClient(key, payload, baseclient)
+		putRequest := utils.PutKeyClient(key, payloadFile, baseclient)
 		log.Println("Put key: ", key)
 		res, err := client.Do(putRequest)
 

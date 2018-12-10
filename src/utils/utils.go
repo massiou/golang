@@ -71,9 +71,12 @@ func PutKey(key, payloadFile string, baseserver string) *http.Request {
 }
 
 // PutKeyClient hyperdrive client
-func PutKeyClient(key, payload, baseclient string) *http.Request {
+func PutKeyClient(key, payloadFile string, baseclient string) *http.Request {
 	uri := baseclient + key
-	data := strings.NewReader(payload)
+
+	payload, _ := ioutil.ReadFile(payloadFile)
+	data := strings.NewReader(string(payload))
+
 	log.Println(uri)
 	req, err := http.NewRequest(http.MethodPut, uri, data)
 
