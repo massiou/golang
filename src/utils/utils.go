@@ -42,47 +42,47 @@ func GenerateKey(length int) string {
 }
 
 // PutKey hyperdrive server
-func PutKey(key, payloadFile string, baseserver string) *http.Request {
-	uri := baseserver + "store/" + key
+func PutKey(hdType string, key, payloadFile string, baseURL string) *http.Request {
 
 	payload, _ := ioutil.ReadFile(payloadFile)
 	data := strings.NewReader(string(payload))
 
-	log.Println(uri)
-	req, err := http.NewRequest(http.MethodPut, uri, data)
+	req := &http.Request{}
+	var err error
 
-	if err != nil {
-		log.Fatal(err)
+	switch hdType {
+	case "server":
+		uri := baseURL + "store/" + key
+		req, err = http.NewRequest(http.MethodPut, uri, data)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Payload size is needed
+		fi, err2 := os.Stat(payloadFile)
+
+		if err2 != nil {
+			log.Fatal(err2)
+		}
+
+		// get the size
+		size := fi.Size()
+
+		// Set headers value with relevant payload size
+		headersValue := fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
+		req.Header.Set("Content-type", headersValue)
+
+	case "client":
+		uri := baseURL + key
+		req, err = http.NewRequest(http.MethodPut, uri, data)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
 	}
 
-	fi, err2 := os.Stat(payloadFile)
-
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-
-	// get the size
-	size := fi.Size()
-
-	headersValue := fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
-	req.Header.Set("Content-type", headersValue)
-
-	return req
-}
-
-// PutKeyClient hyperdrive client
-func PutKeyClient(key, payloadFile string, baseclient string) *http.Request {
-	uri := baseclient + key
-
-	payload, _ := ioutil.ReadFile(payloadFile)
-	data := strings.NewReader(string(payload))
-
-	log.Println(uri)
-	req, err := http.NewRequest(http.MethodPut, uri, data)
-
-	if err != nil {
-		log.Fatal(err)
-	}
 	return req
 }
 

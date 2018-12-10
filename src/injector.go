@@ -28,7 +28,7 @@ const (
 )
 
 // performPutGet
-func performPutGet(baseserver string, nrkeys int, payloadFile string, maxChan chan bool, wg *sync.WaitGroup) {
+func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, maxChan chan bool, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 	client := &http.Client{}
@@ -38,15 +38,18 @@ func performPutGet(baseserver string, nrkeys int, payloadFile string, maxChan ch
 	number := rand.Intn(1000)
 
 	// defer wait group done
-	defer log.Println("End of performPutGet ", number, baseserver)
-	/* TODO limit number of request */
-	//defer func(maxChan chan bool) { <-maxChan }(maxChan)
+	defer log.Println("End of performPutGet ", number, baseURL)
 
+	key := ""
 	for elt := 0; elt < nrkeys; elt++ {
-		key := utils.GenerateKey(64)
+		if hdType == "server" {
+			key = utils.GenerateKey(64)
+		} else if hdType == "client" {
+			key = fmt.Sprintf("dir-%d/obj-%d", elt, number)
+		}
 
 		// Build PUT request
-		putRequest := utils.PutKey(key, payloadFile, baseserver)
+		putRequest := utils.PutKey(hdType, key, payloadFile, baseURL)
 		log.Println("Put key: ", key)
 		res, err := client.Do(putRequest)
 
@@ -54,14 +57,15 @@ func performPutGet(baseserver string, nrkeys int, payloadFile string, maxChan ch
 			log.Fatal(err)
 		}
 
-		defer res.Body.Close()
-
-		if res.StatusCode != 204 {
+		if res.StatusCode != 204 && res.StatusCode != 200 {
 			log.Fatal(res.StatusCode)
 		}
+
+		res.Body.Close()
+
 		/*
 			// Build GET request
-			getRequest := utils.GetKey(key, baseserver)
+			getRequest := utils.GetKey(key, baseURL)
 			log.Println("Get key: ", key)
 			res2, err2 := client.Do(getRequest)
 
@@ -121,50 +125,6 @@ func getGroupsIndex(client *http.Client, baseserver string) utils.ListGroups {
 	return groups
 }
 
-// performPutGetClient hyperdrive client
-func performPutGetClient(baseclient string, nrkeys int, payloadFile string, maxChan chan bool, wg *sync.WaitGroup) {
-	// Increment the number of goroutines to wait for
-
-	// Store a random number to identify the current instance
-	rand.Seed(time.Now().UTC().UnixNano())
-	number := rand.Intn(1000)
-	client := &http.Client{}
-
-	// defer wait group done
-	defer log.Println("End of performPutGet ", number, baseclient)
-	defer wg.Done()
-	// defer func(maxChan chan bool) { <-maxChan }(maxChan)
-
-	for elt := 0; elt < nrkeys; elt++ {
-		key := fmt.Sprintf("dir-%d/obj-%d", elt, number)
-
-		// Build PUT request
-		putRequest := utils.PutKeyClient(key, payloadFile, baseclient)
-		log.Println("Put key: ", key)
-		res, err := client.Do(putRequest)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if res.StatusCode != 200 {
-			log.Println(res)
-			log.Println("Put key error: ", err)
-		}
-		res.Body.Close()
-		/*
-			// Build GET request
-			getRequest := utils.GetKeyClient(key, baseclient)
-			log.Println("Get key: ", key)
-			res2, err2 := client.Do(getRequest)
-
-			if res2.StatusCode != 200 {
-				log.Println("Get key error:", err2)
-			}
-			res2.Body.Close()*/
-	}
-}
-
 // performDelClient hyperdrive client
 func PerformDelClient(client *http.Client, baseclient string, nrkeys int, wg *sync.WaitGroup) bool {
 	/* XXX Should be done before calling goroutine */
@@ -175,7 +135,7 @@ func PerformDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 
 }
 
-func mainServer(baseserver string, nrroutines int, nrkeys int, payloadFile string) {
+func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payloadFile string) {
 	log.Println("Launch injector routines: ", nrroutines)
 
 	// Create wait group object
@@ -186,7 +146,7 @@ func mainServer(baseserver string, nrroutines int, nrkeys int, payloadFile strin
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
 		wg.Add(1)
-		go performPutGet(baseserver, nrkeys, payloadFile, maxChan, &wg)
+		go performPutGet(hdType, baseserver, nrkeys, payloadFile, maxChan, &wg)
 	}
 
 	wg.Wait()
@@ -201,31 +161,6 @@ func mainServer(baseserver string, nrroutines int, nrkeys int, payloadFile strin
 	log.Println(len(keys.Keys))
 }
 
-// mainClient perform http requests from hyperdrive client
-func mainClient(baseclient string, nrroutines int, nrkeys int, payloadFile string) {
-	defer wgMain.Done()
-
-	// Create wait group object
-	var wg sync.WaitGroup
-	maxChan := make(chan bool, maxFileDescriptors)
-	for i := 0; i < nrroutines; i++ {
-		maxChan <- true
-		wg.Add(1)
-		go performPutGetClient(baseclient, nrkeys, payloadFile, maxChan, &wg)
-	}
-
-	wg.Wait()
-	/*
-		grp1 := getGroupsIndex(client, BaseServer1)
-		grp2 := getGroupsIndex(client, BaseServer2)
-		grp3 := getGroupsIndex(client, BaseServer3)
-
-		log.Println("Groups hd1: ", len(grp1.Groups))
-		log.Println("Groups hd2: ", len(grp2.Groups))
-		log.Println("Groups hd3: ", len(grp3.Groups))
-	*/
-}
-
 var wgMain sync.WaitGroup
 
 func main() {
@@ -234,29 +169,25 @@ func main() {
 	workersPtr := flag.Int("workers", 64, "number of workers in parallel")
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
 	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
-	nrclientPtr := flag.Int("nrclients", 1, "number of HD clients")
-	nrserverPtr := flag.Int("nrservers", 1, "number of HD servers")
+	nrinstancesPtr := flag.Int("nrinstances", 1, "number of HD clients/servers")
 	nrkeysPtr := flag.Int("nrkeys", 1, "number of keys per goroutine")
 
 	flag.Parse()
 
 	// Main call
+	portBase := 0
 	if *typePtr == "server" {
-		for nrserver := 0; nrserver < *nrserverPtr; nrserver++ {
-			wgMain.Add(1)
-			port := PortServer + nrserver
-			baseserver := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
-			go mainServer(baseserver, *workersPtr, *nrkeysPtr, *payloadPtr)
-		}
-
+		portBase = PortServer
 	} else if *typePtr == "client" {
-		for nrclient := 0; nrclient < *nrclientPtr; nrclient++ {
-			wgMain.Add(1)
-			port := PortClient + nrclient
-			baseclient := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
-			go mainClient(baseclient, *workersPtr, *nrkeysPtr, *payloadPtr)
-		}
-		wgMain.Wait()
+		portBase = PortClient
+
+	}
+	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
+		port := portBase + nrinstances
+		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
+		wgMain.Add(1)
+		go mainFunc(*typePtr, baseURL, *workersPtr, *nrkeysPtr, *payloadPtr)
 	}
 
+	wgMain.Wait()
 }
