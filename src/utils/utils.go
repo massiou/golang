@@ -78,7 +78,7 @@ func PutKey(hdType string, key, payloadFile string, baseURL string) *http.Reques
 		req, err = http.NewRequest(http.MethodPut, uri, data)
 
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Put Key, uri=", uri, "error:", err)
 		}
 
 	default:

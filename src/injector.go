@@ -50,7 +50,7 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 		}
 
 		// Build PUT request
-		log.Println("Put key: ", key)
+		log.Println("Put key: ", key, "on", baseURL)
 		putRequest := utils.PutKey(hdType, key, payloadFile, baseURL)
 
 		res, err := client.Do(putRequest)
