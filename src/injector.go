@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -30,14 +29,14 @@ const (
 )
 
 // performPutGet
-func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup) {
+func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup) int {
 
 	defer wg.Done()
 
 	client := &http.Client{}
 
 	throughput := 0
-	var totalSize int64
+	var totalSize int
 	start := time.Now()
 
 	// Payload size is needed
@@ -82,11 +81,11 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 
 		res.Body.Close()
 
-		totalSize += size
+		totalSize += int(size)
 
-		currentTime := time.Now()
+		elapsed := int(time.Since(start))
 
-		throughput = int(totalSize/int64((currentTime.Sub(start)))) / int(math.Pow10(6))
+		throughput = totalSize / elapsed
 
 		fmt.Println("Throughput: ", throughput, "Mo/s")
 
@@ -102,6 +101,8 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 			res2.Body.Close()
 		*/
 	}
+	return throughput
+
 }
 
 func getKeysIndex(client *http.Client, baseserver string) utils.ListKeys {
