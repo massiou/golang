@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -29,13 +30,13 @@ const (
 )
 
 // performPutGet
-func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup) int {
+func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup, throughputChan chan float64) float64 {
 
 	defer wg.Done()
 
 	client := &http.Client{}
 
-	throughput := 0
+	throughput := 0.0
 	var totalSize int
 	start := time.Now()
 
@@ -83,10 +84,11 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 
 		totalSize += int(size)
 
-		elapsed := int(time.Since(start))
+		elapsed := int(time.Since(start)) / int(math.Pow10(9))
 
-		throughput = totalSize / elapsed
+		throughput = float64((totalSize / elapsed) / int(math.Pow10(6)))
 
+		fmt.Println("totalSize=", totalSize, "elapsed=", elapsed)
 		fmt.Println("Throughput: ", throughput, "Mo/s")
 
 		/*
@@ -101,7 +103,7 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 			res2.Body.Close()
 		*/
 	}
-	return throughput
+	throughputChan <- throughput
 
 }
 
@@ -170,11 +172,15 @@ func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payl
 	// Create wait group object
 	var wg sync.WaitGroup
 
+	throughputChan := make(chan float64)
+
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
 		wg.Add(1)
-		go performPutGet(hdType, baseserver, nrkeys, payloadFile, &wg)
+		go performPutGet(hdType, baseserver, nrkeys, payloadFile, &wg, throughputChan)
+		throughput := <-throughputChan
+		fmt.Println("Routine", i, "Throughput=", throughput, "Mo/s")
 	}
 
 	wg.Wait()
@@ -215,6 +221,7 @@ func main() {
 		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
 		go mainFunc(*typePtr, baseURL, *workersPtr, *nrkeysPtr, *payloadPtr, &wgMain)
+
 	}
 	wgMain.Wait()
 }
