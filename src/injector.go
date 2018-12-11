@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -31,7 +33,22 @@ const (
 func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup) {
 
 	defer wg.Done()
+
 	client := &http.Client{}
+
+	throughput := 0
+	var totalSize int64
+	start := time.Now()
+
+	// Payload size is needed
+	fi, errSize := os.Stat(payloadFile)
+
+	if errSize != nil {
+		log.Fatal("os.Stat() of", payloadFile, "error:", errSize)
+	}
+
+	// get the size
+	size := fi.Size()
 
 	// Store a random number to identify the current instance
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -51,7 +68,7 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 
 		// Build PUT request
 		log.Println("Put key: ", key, "on", baseURL)
-		putRequest := utils.PutKey(hdType, key, payloadFile, baseURL)
+		putRequest := utils.PutKey(hdType, key, payloadFile, size, baseURL)
 
 		res, err := client.Do(putRequest)
 
@@ -64,6 +81,14 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 		}
 
 		res.Body.Close()
+
+		totalSize += size
+
+		currentTime := time.Now()
+
+		throughput = int(totalSize/int64((currentTime.Sub(start)))) / int(math.Pow10(6))
+
+		fmt.Println("Throughput: ", throughput, "Mo/s")
 
 		/*
 			// Build GET request

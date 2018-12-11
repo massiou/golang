@@ -6,7 +6,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -42,7 +41,7 @@ func GenerateKey(length int) string {
 }
 
 // PutKey hyperdrive server
-func PutKey(hdType string, key, payloadFile string, baseURL string) *http.Request {
+func PutKey(hdType string, key, payloadFile string, size int64, baseURL string) *http.Request {
 
 	payload, _ := ioutil.ReadFile(payloadFile)
 	data := strings.NewReader(string(payload))
@@ -58,16 +57,6 @@ func PutKey(hdType string, key, payloadFile string, baseURL string) *http.Reques
 		if err != nil {
 			log.Fatal("Put Key, uri=", uri, "error:", err)
 		}
-
-		// Payload size is needed
-		fi, err2 := os.Stat(payloadFile)
-
-		if err2 != nil {
-			log.Fatal("os.Stat() of", payloadFile, "error:", err2)
-		}
-
-		// get the size
-		size := fi.Size()
 
 		// Set headers value with relevant payload size
 		headersValue := fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
