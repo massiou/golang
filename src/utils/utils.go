@@ -41,33 +41,41 @@ func GenerateKey(length int) string {
 }
 
 // PutKey hyperdrive server
-func PutKey(hdType string, key, payloadFile string, size int64, baseURL string) *http.Request {
+func OpKey(hdType string, request string, key, payloadFile string, size int64, baseURL string) *http.Request {
 
 	payload, _ := ioutil.ReadFile(payloadFile)
 	data := strings.NewReader(string(payload))
 
 	req := &http.Request{}
 	var err error
+	headersValue := ""
+	uri := ""
 
 	switch hdType {
 	case "server":
-		uri := baseURL + "store/" + key
-		req, err = http.NewRequest(http.MethodPut, uri, data)
+		uri = baseURL + "store/" + key
 
-		if err != nil {
-			log.Fatal("Put Key, uri=", uri, "error:", err)
+		switch request {
+		case "put":
+			req, err = http.NewRequest(http.MethodPut, uri, data)
+			// Set headers value with relevant payload size
+			headersValue = fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
+			req.Header.Set("Content-type", headersValue)
+		case "get":
+			req, err = http.NewRequest(http.MethodGet, uri, data)
+			req.Header.Set("Accept", "application/x-scality-storage-data;meta;usermeta;data")
+		default:
+			panic("Operation not available")
 		}
 
-		// Set headers value with relevant payload size
-		headersValue := fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
-		req.Header.Set("Content-type", headersValue)
-
 	case "client":
-		uri := baseURL + key
-		req, err = http.NewRequest(http.MethodPut, uri, data)
+		uri = baseURL + key
 
-		if err != nil {
-			log.Fatal("Put Key, uri=", uri, "error:", err)
+		switch request {
+		case "put":
+			req, err = http.NewRequest(http.MethodPut, uri, data)
+		case "get":
+			req, err = http.NewRequest(http.MethodGet, uri, data)
 		}
 
 	default:
@@ -75,11 +83,15 @@ func PutKey(hdType string, key, payloadFile string, size int64, baseURL string) 
 
 	}
 
+	if err != nil {
+		log.Fatal(request, " Key, uri=", uri, "error:", err)
+	}
+
 	return req
 }
 
 // GetKeyClient hyperdrive client
-func GetKeyClient(key, BaseClient string) *http.Request {
+func GetKeyClient(hdType string, key, BaseClient string) *http.Request {
 	uri := BaseClient + key
 	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	log.Println(uri)

@@ -54,11 +54,11 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 	rand.Seed(time.Now().UTC().UnixNano())
 	number := rand.Intn(1000)
 
+	key := "defaultKey"
+
 	// defer wait group done
 	defer log.Println("End of performPutGet ", number, baseURL)
 
-	key := "defaultKey"
-	log.Println(hdType)
 	for elt := 0; elt < nrkeys; elt++ {
 		if hdType == "server" {
 			key = utils.GenerateKey(64)
@@ -68,7 +68,7 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 
 		// Build PUT request
 		log.Println("Put key: ", key, "on", baseURL)
-		putRequest := utils.PutKey(hdType, key, payloadFile, size, baseURL)
+		putRequest := utils.OpKey(hdType, "put", key, payloadFile, size, baseURL)
 
 		res, err := client.Do(putRequest)
 
@@ -82,17 +82,18 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 
 		res.Body.Close()
 
+		// Update total put size
 		totalSize += int(size)
 
 		// Build GET request
-		getRequest := utils.GetKey(key, baseURL)
+		getRequest := utils.OpKey(hdType, "get", key, payloadFile, size, baseURL)
 		log.Println("Get key: ", key)
-		res2, err2 := client.Do(getRequest)
+		resGet, errGet := client.Do(getRequest)
 
-		if res2.StatusCode != 200 {
-			log.Fatal(err2)
+		if resGet.StatusCode != 200 {
+			log.Fatal(errGet)
 		}
-		res2.Body.Close()
+		resGet.Body.Close()
 
 		// Get elapsed time and convert it from nano to seconds
 		elapsed := int(time.Since(start)) / int(math.Pow10(9))
@@ -101,7 +102,7 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 			// in Mo/s
 			throughput = float64((totalSize / elapsed) / int(math.Pow10(6)))
 
-			fmt.Println("totalSize=", totalSize, "elapsed=", elapsed)
+			fmt.Println("totalSize=", totalSize, "nrkeys=", nrkeys, "elapsed=", elapsed)
 			fmt.Println("Throughput: ", throughput, "Mo/s")
 		}
 	}
