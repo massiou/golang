@@ -86,8 +86,8 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 		totalSize += int(size)
 
 		// Build GET request
+		log.Println("Get key: ", key, "on", baseURL)
 		getRequest := utils.OpKey(hdType, "get", key, payloadFile, size, baseURL)
-		log.Println("Get key: ", key)
 		resGet, errGet := client.Do(getRequest)
 
 		if errGet != nil {
