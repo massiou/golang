@@ -84,26 +84,26 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 
 		totalSize += int(size)
 
+		// Build GET request
+		getRequest := utils.GetKey(key, baseURL)
+		log.Println("Get key: ", key)
+		res2, err2 := client.Do(getRequest)
+
+		if res2.StatusCode != 200 {
+			log.Fatal(err2)
+		}
+		res2.Body.Close()
+
+		// Get elapsed time and convert it from nano to seconds
 		elapsed := int(time.Since(start)) / int(math.Pow10(9))
 
 		if elapsed != 0 {
+			// in Mo/s
 			throughput = float64((totalSize / elapsed) / int(math.Pow10(6)))
 
 			fmt.Println("totalSize=", totalSize, "elapsed=", elapsed)
 			fmt.Println("Throughput: ", throughput, "Mo/s")
 		}
-
-		/*
-			// Build GET request
-			getRequest := utils.GetKey(key, baseURL)
-			log.Println("Get key: ", key)
-			res2, err2 := client.Do(getRequest)
-
-			if res2.StatusCode != 200 {
-				log.Fatal(err2)
-			}
-			res2.Body.Close()
-		*/
 	}
 	throughputChan <- throughput
 
