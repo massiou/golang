@@ -73,11 +73,11 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 		res, err := client.Do(putRequest)
 
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("err=", err)
 		}
 
 		if res.StatusCode != 204 && res.StatusCode != 200 {
-			log.Fatal(res.StatusCode)
+			log.Fatal("status code=", res.StatusCode)
 		}
 
 		res.Body.Close()
@@ -89,6 +89,10 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 		getRequest := utils.OpKey(hdType, "get", key, payloadFile, size, baseURL)
 		log.Println("Get key: ", key)
 		resGet, errGet := client.Do(getRequest)
+
+		if errGet != nil {
+			log.Fatal("err=", errGet)
+		}
 
 		if resGet.StatusCode != 200 {
 			log.Fatal("code=", resGet.StatusCode, "err=", errGet)
