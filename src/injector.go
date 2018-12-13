@@ -86,10 +86,12 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 
 		elapsed := int(time.Since(start)) / int(math.Pow10(9))
 
-		throughput = float64((totalSize / elapsed) / int(math.Pow10(6)))
+		if elapsed != 0 {
+			throughput = float64((totalSize / elapsed) / int(math.Pow10(6)))
 
-		fmt.Println("totalSize=", totalSize, "elapsed=", elapsed)
-		fmt.Println("Throughput: ", throughput, "Mo/s")
+			fmt.Println("totalSize=", totalSize, "elapsed=", elapsed)
+			fmt.Println("Throughput: ", throughput, "Mo/s")
+		}
 
 		/*
 			// Build GET request
