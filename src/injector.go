@@ -91,7 +91,7 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 		resGet, errGet := client.Do(getRequest)
 
 		if resGet.StatusCode != 200 {
-			log.Fatal(errGet)
+			log.Fatal("code=", resGet.StatusCode, "err=", errGet)
 		}
 		resGet.Body.Close()
 

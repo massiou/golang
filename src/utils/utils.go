@@ -40,7 +40,7 @@ func GenerateKey(length int) string {
 	return ret
 }
 
-// PutKey hyperdrive server
+// OpKey PUT/GET function
 func OpKey(hdType string, request string, key, payloadFile string, size int64, baseURL string) *http.Request {
 
 	payload, _ := ioutil.ReadFile(payloadFile)
