@@ -30,7 +30,7 @@ const (
 )
 
 // performPutGet
-func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup, throughputChan chan float64) float64 {
+func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup, throughputChan chan float64) {
 
 	defer wg.Done()
 
@@ -174,12 +174,15 @@ func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payl
 
 	throughputChan := make(chan float64)
 
+	var thrSlice []float64
+
 	start := time.Now().Unix()
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
 		wg.Add(1)
 		go performPutGet(hdType, baseserver, nrkeys, payloadFile, &wg, throughputChan)
 		throughput := <-throughputChan
+		thrSlice = append(thrSlice, throughput)
 		fmt.Println("Routine", i, "Throughput=", throughput, "Mo/s")
 	}
 
@@ -188,6 +191,8 @@ func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payl
 	end := time.Now().Unix()
 
 	log.Println(int(end) - int(start))
+
+	fmt.Println("Routines: ", thrSlice)
 }
 
 var wgMain sync.WaitGroup
