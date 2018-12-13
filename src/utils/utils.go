@@ -62,7 +62,7 @@ func OpKey(hdType string, request string, key, payloadFile string, size int64, b
 			headersValue = fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
 			req.Header.Set("Content-type", headersValue)
 		case "get":
-			req, err = http.NewRequest(http.MethodGet, uri, data)
+			req, err = http.NewRequest(http.MethodGet, uri, nil)
 			req.Header.Set("Accept", "application/x-scality-storage-data;meta;usermeta;data")
 		default:
 			panic("Operation not available")
