@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -98,6 +99,8 @@ func performPutGet(hdType string, operations []string, baseURL string, nrkeys in
 				if res2.StatusCode >= 300 {
 					log.Fatal("status code=", res2.StatusCode, "res=", res2)
 				}
+
+				io.Copy(ioutil.Discard, res2.Body)
 
 				res2.Body.Close()
 			}
