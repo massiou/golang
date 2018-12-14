@@ -30,12 +30,9 @@ const (
 )
 
 // performPutGet
-func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup, throughputChan chan float64) {
+func performPutGet(hdType string, operations []string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup, throughputChan chan float64) {
 
 	defer wg.Done()
-
-	operations := []string{"put", "get", "del"}
-
 	client := &http.Client{}
 
 	throughput := 0.0
@@ -166,6 +163,8 @@ func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payl
 	defer wgMain.Done()
 	log.Println("Launch injector routines: ", nrroutines)
 
+	operations := []string{"put", "get", "del"}
+
 	// Create wait group object
 	var wg sync.WaitGroup
 
@@ -177,7 +176,7 @@ func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payl
 	// Perform PUT & GET concurrently
 	for i := 0; i < nrroutines; i++ {
 		wg.Add(1)
-		go performPutGet(hdType, baseserver, nrkeys, payloadFile, &wg, throughputChan)
+		go performPutGet(hdType, operations, baseserver, nrkeys, payloadFile, &wg, throughputChan)
 		throughput := <-throughputChan
 		thrSlice = append(thrSlice, throughput)
 		fmt.Println("Routine", i, "Throughput=", throughput, "Mo/s")
