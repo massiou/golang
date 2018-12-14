@@ -74,7 +74,7 @@ func performPutGet(hdType string, operations []string, baseURL string, nrkeys in
 			res, err := client.Do(opRequest)
 
 			if operation == "put" && hdType == "client" {
-				log.Println("Client Key=", res.Header["Scal-Key"])
+				log.Println("Client Key=", res.Header.Get("Scal-Key")
 			}
 
 			if err != nil {
