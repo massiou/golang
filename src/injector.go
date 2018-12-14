@@ -199,7 +199,7 @@ func mainFunc(
 	chanThpt chan map[string]float64) {
 
 	defer wgMain.Done()
-	var thrpt map[string]float64
+	thrpt := make(map[string]float64)
 
 	// Payload size is needed for PUT
 	fi, errSize := os.Stat(payloadFile)
@@ -227,7 +227,7 @@ func mainFunc(
 
 	thrpt["put"] = throughput
 	thrpt["get"] = throughput2
-	thrpt["get"] = throughput3
+	thrpt["del"] = throughput3
 
 	chanThpt <- thrpt
 }
