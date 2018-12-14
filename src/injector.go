@@ -99,6 +99,20 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 		}
 		resGet.Body.Close()
 
+		// Build DEL request
+		log.Println("Del key: ", key, "on", baseURL)
+		delRequest := utils.OpKey(hdType, "del", key, payloadFile, size, baseURL)
+		resDel, errDel := client.Do(delRequest)
+
+		if errDel != nil {
+			log.Fatal("err=", errDel)
+		}
+
+		if resDel.StatusCode != 200 {
+			log.Fatal("code=", resDel.StatusCode, "err=", errDel)
+		}
+		resDel.Body.Close()
+
 		// Get elapsed time and convert it from nano to seconds
 		elapsed := int(time.Since(start)) / int(math.Pow10(9))
 

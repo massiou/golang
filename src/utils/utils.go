@@ -40,7 +40,7 @@ func GenerateKey(length int) string {
 	return ret
 }
 
-// OpKey PUT/GET function
+// OpKey PUT/GET/DELETE function
 func OpKey(hdType string, request string, key, payloadFile string, size int64, baseURL string) *http.Request {
 
 	payload, _ := ioutil.ReadFile(payloadFile)
@@ -64,6 +64,9 @@ func OpKey(hdType string, request string, key, payloadFile string, size int64, b
 		case "get":
 			req, err = http.NewRequest(http.MethodGet, uri, nil)
 			req.Header.Set("Accept", "application/x-scality-storage-data;meta;usermeta;data")
+		case "del":
+			req, err = http.NewRequest(http.MethodDelete, uri, nil)
+			req.Header.Set("Content-type", "application/x-scality-storage-data")
 		default:
 			panic("Operation not available")
 		}
@@ -75,7 +78,9 @@ func OpKey(hdType string, request string, key, payloadFile string, size int64, b
 		case "put":
 			req, err = http.NewRequest(http.MethodPut, uri, data)
 		case "get":
-			req, err = http.NewRequest(http.MethodGet, uri, data)
+			req, err = http.NewRequest(http.MethodGet, uri, nil)
+		case "del":
+			req, err = http.NewRequest(http.MethodDelete, uri, nil)
 		}
 
 	default:
