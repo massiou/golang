@@ -57,12 +57,12 @@ func performWorkload(
 	operation string,
 	baseURL string,
 	keys []string,
-	payloadFile string) ([]string, float64) {
+	payloadFile string,
+	size int) ([]string, float64) {
 
 	client := &http.Client{}
 
 	throughput := 0.0
-	size := 0
 	var keysGenerated []string
 	var totalSize int
 
@@ -192,19 +192,28 @@ func generateKeys(hdType string, nrkeys int) []string {
 func mainFunc(hdType string, operations []string, baseserver string, nrkeys int, payloadFile string, wgMain *sync.WaitGroup) {
 	defer wgMain.Done()
 
+	// Payload size is needed for PUT
+	fi, errSize := os.Stat(payloadFile)
+
+	if errSize != nil {
+		log.Fatal("os.Stat() of", payloadFile, "error:", errSize)
+	}
+	// get the size
+	size := int(fi.Size())
+
 	// generate nrkeys random keys
 	keys := generateKeys(hdType, nrkeys)
 
 	// Perform PUT operations
-	keys2, throughput := performWorkload(hdType, "put", baseserver, keys, payloadFile)
+	keys2, throughput := performWorkload(hdType, "put", baseserver, keys, payloadFile, size)
 	fmt.Println("Operations=", operations, "Throughput=", throughput)
 
 	// Perform GET operations
-	_, throughput2 := performWorkload(hdType, "get", baseserver, keys2, payloadFile)
+	_, throughput2 := performWorkload(hdType, "get", baseserver, keys2, payloadFile, size)
 	fmt.Println("Operations=", operations, "Throughput=", throughput2)
 
 	// Perform DEL operations
-	_, throughput3 := performWorkload(hdType, "del", baseserver, keys2, payloadFile)
+	_, throughput3 := performWorkload(hdType, "del", baseserver, keys2, payloadFile, size)
 	fmt.Println("Operations=", operations, "Throughput=", throughput3)
 }
 
