@@ -189,8 +189,17 @@ func generateKeys(hdType string, nrkeys int) []string {
 	return keys
 }
 
-func mainFunc(hdType string, operations []string, baseserver string, nrkeys int, payloadFile string, wgMain *sync.WaitGroup) {
+func mainFunc(
+	hdType string,
+	operations []string,
+	baseserver string,
+	nrkeys int,
+	payloadFile string,
+	wgMain *sync.WaitGroup,
+	chanThpt chan map[string]float64) {
+
 	defer wgMain.Done()
+	var thrpt map[string]float64
 
 	// Payload size is needed for PUT
 	fi, errSize := os.Stat(payloadFile)
@@ -206,15 +215,21 @@ func mainFunc(hdType string, operations []string, baseserver string, nrkeys int,
 
 	// Perform PUT operations
 	keys2, throughput := performWorkload(hdType, "put", baseserver, keys, payloadFile, size)
-	fmt.Println("Operations=", operations, "Throughput=", throughput)
+	log.Println("Operations=", operations, "Throughput=", throughput)
 
 	// Perform GET operations
 	_, throughput2 := performWorkload(hdType, "get", baseserver, keys2, payloadFile, size)
-	fmt.Println("Operations=", operations, "Throughput=", throughput2)
+	log.Println("Operations=", operations, "Throughput=", throughput2)
 
 	// Perform DEL operations
 	_, throughput3 := performWorkload(hdType, "del", baseserver, keys2, payloadFile, size)
-	fmt.Println("Operations=", operations, "Throughput=", throughput3)
+	log.Println("Operations=", operations, "Throughput=", throughput3)
+
+	thrpt["put"] = throughput
+	thrpt["get"] = throughput2
+	thrpt["get"] = throughput3
+
+	chanThpt <- thrpt
 }
 
 var wgMain sync.WaitGroup
@@ -228,6 +243,8 @@ func main() {
 	nrkeysPtr := flag.Int("nrkeys", 1, "number of keys per goroutine")
 
 	operations := []string{"put", "get", "del"}
+
+	chanThrpt := make(chan map[string]float64)
 
 	flag.Parse()
 
@@ -248,8 +265,9 @@ func main() {
 		port := portBase + nrinstances
 		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
-		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain)
-
+		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt)
+		thrpt := <-chanThrpt
+		log.Println("Instance ID", nrinstances, "Throughput=", thrpt, "Mo/s")
 	}
 	wgMain.Wait()
 }
