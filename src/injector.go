@@ -23,8 +23,8 @@ const (
 	BaseServer2 = "http://127.0.0.1:4245/"
 	BaseServer3 = "http://127.0.0.1:4246/"
 	// BaseClient Hyperdrive client base url
-	BaseClient         = "http://127.0.0.1:8889/"
-	PortClient         = 8889
+	BaseClient         = "http://127.0.0.1:18888/"
+	PortClient         = 18888
 	PortServer         = 4244
 	maxFileDescriptors = 1000
 )
@@ -67,18 +67,22 @@ func performPutGet(hdType string, operations []string, baseURL string, nrkeys in
 
 		for _, operation := range operations {
 
-			// Build PUT request
+			// Build request
 			log.Println(operation, " key: ", key, "on", baseURL)
 			opRequest := utils.OpKey(hdType, operation, key, payloadFile, size, baseURL)
 
 			res, err := client.Do(opRequest)
 
+			if operation == "put" && hdType == "client" {
+				log.Println("Client Key=", res.Header["Scal-Key"])
+			}
+
 			if err != nil {
 				log.Fatal("err=", err)
 			}
 
-			if res.StatusCode != 204 && res.StatusCode != 200 {
-				log.Fatal("status code=", res.StatusCode)
+			if res.StatusCode >= 300 {
+				log.Fatal("status code=", res.StatusCode, "res=", res)
 			}
 
 			res.Body.Close()
