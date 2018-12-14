@@ -30,82 +30,81 @@ const (
 	maxFileDescriptors = 1000
 )
 
-// performPutGet
-func performPutGet(hdType string, operations []string, baseURL string, nrkeys int, payloadFile string, wg *sync.WaitGroup, throughputChan chan float64) {
+/*
 
-	defer wg.Done()
+	log.Println("Client Key=", randomKey)
+	log.Println(operation, " key: ", key, "on", baseURL)
+	opRequestClient := utils.OpKey(hdType, "get", key, payloadFile, size, baseURL)
+
+	res2, err2 := client.Do(opRequestClient)
+	if err2 != nil {
+		log.Fatal("err=", err2)
+	}
+
+	if res2.StatusCode >= 300 {
+		log.Fatal("status code=", res2.StatusCode, "res=", res2)
+	}
+
+	io.Copy(ioutil.Discard, res2.Body)
+
+	res2.Body.Close()
+
+*/
+
+// performPut
+func performWorkload(
+	hdType string,
+	operation string,
+	baseURL string,
+	keys []string,
+	payloadFile string) ([]string, float64) {
+
 	client := &http.Client{}
 
 	throughput := 0.0
+	size := 0
+	var keysGenerated []string
 	var totalSize int
+
 	start := time.Now()
 
-	// Payload size is needed
-	fi, errSize := os.Stat(payloadFile)
+	if operation == "put" {
+		// Payload size is needed for PUT
+		fi, errSize := os.Stat(payloadFile)
 
-	if errSize != nil {
-		log.Fatal("os.Stat() of", payloadFile, "error:", errSize)
+		if errSize != nil {
+			log.Fatal("os.Stat() of", payloadFile, "error:", errSize)
+		}
+		// get the size
+		size = int(fi.Size())
 	}
 
-	// get the size
-	size := fi.Size()
+	// Loop on all keys
+	for _, key := range keys {
+		// Build request
+		log.Println(operation, " key: ", key, "on", baseURL)
+		opRequest := utils.OpKey(hdType, operation, key, payloadFile, size, baseURL)
+		res, err := client.Do(opRequest)
 
-	// Store a random number to identify the current instance
-	rand.Seed(time.Now().UTC().UnixNano())
-	number := rand.Intn(1000)
-
-	key := "defaultKey"
-
-	// defer wait group done
-	defer log.Println("End of performPutGetDel ", number, baseURL)
-
-	for elt := 0; elt < nrkeys; elt++ {
-		if hdType == "server" {
-			key = utils.GenerateKey(64)
-		} else if hdType == "client" {
-			key = fmt.Sprintf("dir-%d/obj-%d", number, elt)
+		if err != nil {
+			log.Fatal("err=", err)
 		}
 
-		for _, operation := range operations {
-
-			// Build request
-			log.Println(operation, " key: ", key, "on", baseURL)
-			opRequest := utils.OpKey(hdType, operation, key, payloadFile, size, baseURL)
-
-			res, err := client.Do(opRequest)
-
-			if err != nil {
-				log.Fatal("err=", err)
-			}
-
-			if res.StatusCode >= 300 {
-				log.Fatal("status code=", res.StatusCode, "res=", res)
-			}
-
-			res.Body.Close()
-
-			// After a PUT on client hdproxy, get the generated key
-			if operation == "put" && hdType == "client" {
-				randomKey := res.Header.Get("Scal-Key")
-				log.Println("Client Key=", randomKey)
-				log.Println(operation, " key: ", key, "on", baseURL)
-				opRequestClient := utils.OpKey(hdType, "get", key, payloadFile, size, baseURL)
-
-				res2, err2 := client.Do(opRequestClient)
-				if err2 != nil {
-					log.Fatal("err=", err2)
-				}
-
-				if res2.StatusCode >= 300 {
-					log.Fatal("status code=", res2.StatusCode, "res=", res2)
-				}
-
-				io.Copy(ioutil.Discard, res2.Body)
-
-				res2.Body.Close()
-			}
-
+		if res.StatusCode >= 300 {
+			log.Fatal("status code=", res.StatusCode, "res=", res)
 		}
+
+		io.Copy(ioutil.Discard, res.Body)
+		res.Body.Close()
+
+		// After a PUT on client hdproxy, get the generated key
+		if operation == "put" && hdType == "client" {
+			randomKey := res.Header.Get("Scal-Key")
+			keysGenerated = append(keysGenerated, randomKey)
+		} else {
+			keysGenerated = append(keysGenerated, key)
+		}
+
 		// Update total put size
 		totalSize += int(size)
 
@@ -115,13 +114,11 @@ func performPutGet(hdType string, operations []string, baseURL string, nrkeys in
 		if elapsed != 0 {
 			// in Mo/s
 			throughput = float64((totalSize / elapsed) / int(math.Pow10(6)))
-
-			fmt.Println("totalSize=", totalSize, "nrkeys=", nrkeys, "elapsed=", elapsed)
-			fmt.Println("Throughput: ", throughput, "Mo/s")
+			log.Println("operation=", operation, "Throughput: ", throughput, "Mo/s")
+			log.Println("totalSize=", totalSize, "nrkeys=", len(keysGenerated), "elapsed=", elapsed)
 		}
 	}
-	throughputChan <- throughput
-
+	return keys, throughput
 }
 
 func getKeysIndex(client *http.Client, baseserver string) utils.ListKeys {
@@ -172,44 +169,43 @@ func getGroupsIndex(client *http.Client, baseserver string) utils.ListGroups {
 	return groups
 }
 
-// performDelClient hyperdrive client
-func PerformDelClient(client *http.Client, baseclient string, nrkeys int, wg *sync.WaitGroup) bool {
-	/* XXX Should be done before calling goroutine */
-	wg.Add(1)
-	fmt.Println("OK")
+//generateKeys
+func generateKeys(hdType string, nrkeys int) []string {
+	var keys []string
 
-	return true
-
+	// Store a random number to identify the current instance
+	rand.Seed(time.Now().UTC().UnixNano())
+	number := rand.Intn(1000)
+	key := "defaultKey"
+	for elt := 0; elt < nrkeys; elt++ {
+		// Generate key
+		if hdType == "server" {
+			key = utils.GenerateKey(64)
+		} else if hdType == "client" {
+			key = fmt.Sprintf("dir-%d/obj-%d", number, elt)
+		}
+		keys = append(keys, key)
+	}
+	return keys
 }
 
-func mainFunc(hdType string, operations []string, baseserver string, nrroutines int, nrkeys int, payloadFile string, wgMain *sync.WaitGroup) {
+func mainFunc(hdType string, operations []string, baseserver string, nrkeys int, payloadFile string, wgMain *sync.WaitGroup) {
 	defer wgMain.Done()
-	log.Println("Launch injector routines: ", nrroutines)
 
-	// Create wait group object
-	var wg sync.WaitGroup
+	// generate nrkeys random keys
+	keys := generateKeys(hdType, nrkeys)
 
-	throughputChan := make(chan float64)
+	// Perform PUT operations
+	keys2, throughput := performWorkload(hdType, "put", baseserver, keys, payloadFile)
+	fmt.Println("Operations=", operations, "Throughput=", throughput)
 
-	var thrSlice []float64
+	// Perform GET operations
+	_, throughput2 := performWorkload(hdType, "get", baseserver, keys2, payloadFile)
+	fmt.Println("Operations=", operations, "Throughput=", throughput2)
 
-	start := time.Now().Unix()
-	// Perform PUT & GET concurrently
-	for i := 0; i < nrroutines; i++ {
-		wg.Add(1)
-		go performPutGet(hdType, operations, baseserver, nrkeys, payloadFile, &wg, throughputChan)
-		throughput := <-throughputChan
-		thrSlice = append(thrSlice, throughput)
-		fmt.Println("Routine", i, "Throughput=", throughput, "Mo/s")
-	}
-
-	wg.Wait()
-
-	end := time.Now().Unix()
-
-	log.Println(int(end) - int(start))
-
-	fmt.Println("Operations=", operations, "Throughput=", thrSlice)
+	// Perform DEL operations
+	_, throughput3 := performWorkload(hdType, "del", baseserver, keys2, payloadFile)
+	fmt.Println("Operations=", operations, "Throughput=", throughput3)
 }
 
 var wgMain sync.WaitGroup
@@ -217,7 +213,6 @@ var wgMain sync.WaitGroup
 func main() {
 
 	// Arguments
-	workersPtr := flag.Int("workers", 64, "number of workers in parallel")
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
 	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
 	nrinstancesPtr := flag.Int("nrinstances", 1, "number of HD clients/servers")
@@ -244,7 +239,7 @@ func main() {
 		port := portBase + nrinstances
 		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
-		go mainFunc(*typePtr, operations, baseURL, *workersPtr, *nrkeysPtr, *payloadPtr, &wgMain)
+		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain)
 
 	}
 	wgMain.Wait()

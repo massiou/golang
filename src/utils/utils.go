@@ -41,7 +41,7 @@ func GenerateKey(length int) string {
 }
 
 // OpKey PUT/GET/DELETE function
-func OpKey(hdType string, request string, key, payloadFile string, size int64, baseURL string) *http.Request {
+func OpKey(hdType string, request string, key string, payloadFile string, size int, baseURL string) *http.Request {
 
 	payload, _ := ioutil.ReadFile(payloadFile)
 	data := strings.NewReader(string(payload))
