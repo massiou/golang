@@ -72,7 +72,7 @@ func OpKey(hdType string, request string, key string, payloadFile string, size i
 		}
 
 	case "client":
-		uri = baseURL + key
+		uri = baseURL + "proxy/arc/" + key
 
 		switch request {
 		case "put":
