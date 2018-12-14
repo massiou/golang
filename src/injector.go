@@ -159,11 +159,9 @@ func PerformDelClient(client *http.Client, baseclient string, nrkeys int, wg *sy
 
 }
 
-func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payloadFile string, wgMain *sync.WaitGroup) {
+func mainFunc(hdType string, operations []string, baseserver string, nrroutines int, nrkeys int, payloadFile string, wgMain *sync.WaitGroup) {
 	defer wgMain.Done()
 	log.Println("Launch injector routines: ", nrroutines)
-
-	operations := []string{"put", "get", "del"}
 
 	// Create wait group object
 	var wg sync.WaitGroup
@@ -188,7 +186,7 @@ func mainFunc(hdType string, baseserver string, nrroutines int, nrkeys int, payl
 
 	log.Println(int(end) - int(start))
 
-	fmt.Println("Routines: ", thrSlice)
+	fmt.Println("Operations=", operations, "Throughput=", thrSlice)
 }
 
 var wgMain sync.WaitGroup
@@ -201,6 +199,8 @@ func main() {
 	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
 	nrinstancesPtr := flag.Int("nrinstances", 1, "number of HD clients/servers")
 	nrkeysPtr := flag.Int("nrkeys", 1, "number of keys per goroutine")
+
+	operations := []string{"put", "get", "del"}
 
 	flag.Parse()
 
@@ -221,7 +221,7 @@ func main() {
 		port := portBase + nrinstances
 		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
-		go mainFunc(*typePtr, baseURL, *workersPtr, *nrkeysPtr, *payloadPtr, &wgMain)
+		go mainFunc(*typePtr, operations, baseURL, *workersPtr, *nrkeysPtr, *payloadPtr, &wgMain)
 
 	}
 	wgMain.Wait()
