@@ -34,6 +34,8 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 
 	defer wg.Done()
 
+	operations := []string{"put", "get", "del"}
+
 	client := &http.Client{}
 
 	throughput := 0.0
@@ -57,7 +59,7 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 	key := "defaultKey"
 
 	// defer wait group done
-	defer log.Println("End of performPutGet ", number, baseURL)
+	defer log.Println("End of performPutGetDel ", number, baseURL)
 
 	for elt := 0; elt < nrkeys; elt++ {
 		if hdType == "server" {
@@ -66,52 +68,26 @@ func performPutGet(hdType string, baseURL string, nrkeys int, payloadFile string
 			key = fmt.Sprintf("dir-%d/obj-%d", number, elt)
 		}
 
-		// Build PUT request
-		log.Println("Put key: ", key, "on", baseURL)
-		putRequest := utils.OpKey(hdType, "put", key, payloadFile, size, baseURL)
+		for _, operation := range operations {
 
-		res, err := client.Do(putRequest)
+			// Build PUT request
+			log.Println(operation, " key: ", key, "on", baseURL)
+			opRequest := utils.OpKey(hdType, operation, key, payloadFile, size, baseURL)
 
-		if err != nil {
-			log.Fatal("err=", err)
+			res, err := client.Do(opRequest)
+
+			if err != nil {
+				log.Fatal("err=", err)
+			}
+
+			if res.StatusCode != 204 && res.StatusCode != 200 {
+				log.Fatal("status code=", res.StatusCode)
+			}
+
+			res.Body.Close()
 		}
-
-		if res.StatusCode != 204 && res.StatusCode != 200 {
-			log.Fatal("status code=", res.StatusCode)
-		}
-
-		res.Body.Close()
-
 		// Update total put size
 		totalSize += int(size)
-
-		// Build GET request
-		log.Println("Get key: ", key, "on", baseURL)
-		getRequest := utils.OpKey(hdType, "get", key, payloadFile, size, baseURL)
-		resGet, errGet := client.Do(getRequest)
-
-		if errGet != nil {
-			log.Fatal("err=", errGet)
-		}
-
-		if resGet.StatusCode != 200 {
-			log.Fatal("code=", resGet.StatusCode, "err=", errGet)
-		}
-		resGet.Body.Close()
-
-		// Build DEL request
-		log.Println("Del key: ", key, "on", baseURL)
-		delRequest := utils.OpKey(hdType, "del", key, payloadFile, size, baseURL)
-		resDel, errDel := client.Do(delRequest)
-
-		if errDel != nil {
-			log.Fatal("err=", errDel)
-		}
-
-		if resDel.StatusCode != 200 {
-			log.Fatal("code=", resDel.StatusCode, "err=", errDel)
-		}
-		resDel.Body.Close()
 
 		// Get elapsed time and convert it from nano to seconds
 		elapsed := int(time.Since(start)) / int(math.Pow10(9))
