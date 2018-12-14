@@ -60,7 +60,6 @@ func OpKey(hdType string, request string, key string, payloadFile string, size i
 			req, err = http.NewRequest(http.MethodPut, uri, data)
 			// Set headers value with relevant payload size
 			headersValue = fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
-			log.Println("headers=", headersValue)
 			req.Header.Set("Content-type", headersValue)
 		case "get":
 			req, err = http.NewRequest(http.MethodGet, uri, nil)
