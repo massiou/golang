@@ -77,7 +77,7 @@ func OpKey(hdType string, request string, key, payloadFile string, size int64, b
 
 		switch request {
 		case "put":
-			req, err = http.NewRequest(http.MethodPut, uri, data)
+			req, err = http.NewRequest(http.MethodPost, uri, data)
 		case "get":
 			req, err = http.NewRequest(http.MethodGet, uri, nil)
 		case "del":

@@ -73,10 +73,6 @@ func performPutGet(hdType string, operations []string, baseURL string, nrkeys in
 
 			res, err := client.Do(opRequest)
 
-			if operation == "put" && hdType == "client" {
-				log.Println("Client Key=", res.Header.Get("Scal-Key")
-			}
-
 			if err != nil {
 				log.Fatal("err=", err)
 			}
@@ -86,6 +82,26 @@ func performPutGet(hdType string, operations []string, baseURL string, nrkeys in
 			}
 
 			res.Body.Close()
+
+			// After a PUT on client hdproxy, get the generated key
+			if operation == "put" && hdType == "client" {
+				randomKey := res.Header.Get("Scal-Key")
+				log.Println("Client Key=", randomKey)
+				log.Println(operation, " key: ", key, "on", baseURL)
+				opRequestClient := utils.OpKey(hdType, "get", key, payloadFile, size, baseURL)
+
+				res2, err2 := client.Do(opRequestClient)
+				if err2 != nil {
+					log.Fatal("err=", err2)
+				}
+
+				if res2.StatusCode >= 300 {
+					log.Fatal("status code=", res2.StatusCode, "res=", res2)
+				}
+
+				res2.Body.Close()
+			}
+
 		}
 		// Update total put size
 		totalSize += int(size)
