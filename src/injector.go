@@ -118,7 +118,7 @@ func performWorkload(
 			log.Println("totalSize=", totalSize, "nrkeys=", len(keysGenerated), "elapsed=", elapsed)
 		}
 	}
-	return keys, throughput
+	return keysGenerated, throughput
 }
 
 func getKeysIndex(client *http.Client, baseserver string) utils.ListKeys {
