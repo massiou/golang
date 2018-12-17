@@ -30,28 +30,7 @@ const (
 	maxFileDescriptors = 1000
 )
 
-/*
-
-	log.Println("Client Key=", randomKey)
-	log.Println(operation, " key: ", key, "on", baseURL)
-	opRequestClient := utils.OpKey(hdType, "get", key, payloadFile, size, baseURL)
-
-	res2, err2 := client.Do(opRequestClient)
-	if err2 != nil {
-		log.Fatal("err=", err2)
-	}
-
-	if res2.StatusCode >= 300 {
-		log.Fatal("status code=", res2.StatusCode, "res=", res2)
-	}
-
-	io.Copy(ioutil.Discard, res2.Body)
-
-	res2.Body.Close()
-
-*/
-
-// performPut
+// performWorkload
 func performWorkload(
 	hdType string,
 	operation string,
@@ -68,17 +47,6 @@ func performWorkload(
 
 	start := time.Now()
 
-	if operation == "put" {
-		// Payload size is needed for PUT
-		fi, errSize := os.Stat(payloadFile)
-
-		if errSize != nil {
-			log.Fatal("os.Stat() of", payloadFile, "error:", errSize)
-		}
-		// get the size
-		size = int(fi.Size())
-	}
-
 	// Loop on all keys
 	for _, key := range keys {
 		// Build request
@@ -94,6 +62,7 @@ func performWorkload(
 			log.Fatal("status code=", res.StatusCode, "res=", res)
 		}
 
+		// Consume the response & Close the request
 		io.Copy(ioutil.Discard, res.Body)
 		res.Body.Close()
 
@@ -121,6 +90,7 @@ func performWorkload(
 	return keysGenerated, throughput
 }
 
+// getKeysIndex for hyperdrive server
 func getKeysIndex(client *http.Client, baseserver string) utils.ListKeys {
 	var keys utils.ListKeys
 
@@ -145,6 +115,7 @@ func getKeysIndex(client *http.Client, baseserver string) utils.ListKeys {
 	return keys
 }
 
+// getGroupsIndex for hyperdrive server
 func getGroupsIndex(client *http.Client, baseserver string) utils.ListGroups {
 	var groups utils.ListGroups
 
@@ -201,7 +172,7 @@ func mainFunc(
 	defer wgMain.Done()
 	thrpt := make(map[string]float64)
 
-	// Payload size is needed for PUT
+	// Payload size is needed for PUT header and to compute throughput
 	fi, errSize := os.Stat(payloadFile)
 
 	if errSize != nil {
@@ -218,16 +189,16 @@ func mainFunc(
 	log.Println("Operations=", operations, "Throughput=", throughput)
 
 	// Perform GET operations
-	_, throughput2 := performWorkload(hdType, "get", baseserver, keys2, payloadFile, size)
-	log.Println("Operations=", operations, "Throughput=", throughput2)
+	_, throughputGet := performWorkload(hdType, "get", baseserver, keys2, payloadFile, size)
+	log.Println("Operations=", operations, "Throughput=", throughputGet)
 
 	// Perform DEL operations
-	_, throughput3 := performWorkload(hdType, "del", baseserver, keys2, payloadFile, size)
-	log.Println("Operations=", operations, "Throughput=", throughput3)
+	_, throughputDel := performWorkload(hdType, "del", baseserver, keys2, payloadFile, size)
+	log.Println("Operations=", operations, "Throughput=", throughputDel)
 
 	thrpt["put"] = throughput
-	thrpt["get"] = throughput2
-	thrpt["del"] = throughput3
+	thrpt["get"] = throughputGet
+	thrpt["del"] = throughputDel
 
 	chanThpt <- thrpt
 }
@@ -244,6 +215,7 @@ func main() {
 
 	operations := []string{"put", "get", "del"}
 
+	// Throughput computation channel
 	chanThrpt := make(chan map[string]float64)
 
 	flag.Parse()
