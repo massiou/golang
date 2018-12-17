@@ -169,7 +169,6 @@ func mainFunc(
 	wgMain *sync.WaitGroup,
 	chanThpt chan map[string]float64) {
 
-	defer wgMain.Done()
 	thrpt := make(map[string]float64)
 
 	// Payload size is needed for PUT header and to compute throughput
@@ -186,20 +185,18 @@ func mainFunc(
 
 	// Perform PUT operations
 	keys2, throughput := performWorkload(hdType, "put", baseserver, keys, payloadFile, size)
-	log.Println("Operations=", operations, "Throughput=", throughput)
 
 	// Perform GET operations
 	_, throughputGet := performWorkload(hdType, "get", baseserver, keys2, payloadFile, size)
-	log.Println("Operations=", operations, "Throughput=", throughputGet)
 
 	// Perform DEL operations
 	_, throughputDel := performWorkload(hdType, "del", baseserver, keys2, payloadFile, size)
-	log.Println("Operations=", operations, "Throughput=", throughputDel)
 
 	thrpt["put"] = throughput
 	thrpt["get"] = throughputGet
 	thrpt["del"] = throughputDel
 
+	wgMain.Done()
 	chanThpt <- thrpt
 }
 
@@ -216,7 +213,6 @@ func main() {
 	operations := []string{"put", "get", "del"}
 
 	// Throughput computation channel
-	chanThrpt := make(chan map[string]float64)
 
 	flag.Parse()
 
@@ -233,13 +229,21 @@ func main() {
 		panic("Please choose hd-type in {server, client}, found: " + *typePtr)
 	}
 
+	chanThrpt := make(chan map[string]float64)
+
+	// Launch goroutines in a loop
 	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
 		port := portBase + nrinstances
 		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
 		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt)
+	}
+	wgMain.Wait()
+
+	// Get the throughput for each instance
+	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
+		//log.Println("Wait for chan")
 		thrpt := <-chanThrpt
 		log.Println("Instance ID", nrinstances, "Throughput=", thrpt, "Mo/s")
 	}
-	wgMain.Wait()
 }
