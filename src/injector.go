@@ -87,6 +87,10 @@ func performWorkload(
 			log.Println("totalSize=", totalSize, "nrkeys=", len(keysGenerated), "elapsed=", elapsed)
 		}
 	}
+	if len(keysGenerated) != len(keys) {
+		fmt.Println("nr keys generated=", len(keysGenerated), "nr keys=", len(keys))
+		panic("Keys generated != keys")
+	}
 	return keysGenerated, throughput
 }
 
@@ -191,6 +195,22 @@ func mainFunc(
 
 	// Perform DEL operations
 	_, throughputDel := performWorkload(hdType, "del", baseserver, keys2, payloadFile, size)
+
+	// Perform GET, expected 404
+	client := &http.Client{}
+	for _, key := range keys2 {
+		log.Println("Reget key:", key)
+		opRequest := utils.OpKey(hdType, "get", key, payloadFile, size, baseserver)
+		res, err := client.Do(opRequest)
+		if err != nil {
+			log.Fatal("err=", err)
+		}
+
+		if res.StatusCode != 404 {
+			log.Fatal("status code=", res.StatusCode, "res=", res)
+		}
+
+	}
 
 	thrpt["put"] = throughput
 	thrpt["get"] = throughputGet
