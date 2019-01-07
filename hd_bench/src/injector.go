@@ -19,13 +19,15 @@ import (
 )
 
 const (
-	// BaseServer hyperdrive servers url
-	BaseServer1 = "http://127.0.0.1:4244/"
-	BaseServer2 = "http://127.0.0.1:4245/"
-	BaseServer3 = "http://127.0.0.1:4246/"
+	// baseServer{1,2,3} hyperdrive servers url
+	baseServer1 = "http://127.0.0.1:4244/"
+	baseServer2 = "http://127.0.0.1:4245/"
+	baseServer3 = "http://127.0.0.1:4246/"
 	// BaseClient Hyperdrive client base url
-	BaseClient         = "http://127.0.0.1:18888/"
-	PortClient         = 18888
+	BaseClient = "http://127.0.0.1:18888/"
+	// PortClient : Default client port
+	PortClient = 18888
+	// PortServer : Default server port
 	PortServer         = 4244
 	maxFileDescriptors = 1000
 )
@@ -45,6 +47,13 @@ func performWorkload(
 	var keysGenerated []string
 	var totalSize int
 
+	// Convert payloadFile into string for GET comparisons
+	data, err := ioutil.ReadFile(payloadFile)
+	if err != nil {
+		log.Println(err)
+	}
+	strData := string(data)
+
 	start := time.Now()
 
 	// Loop on all keys
@@ -63,9 +72,21 @@ func performWorkload(
 		}
 
 		// Consume the response & Close the request
-		io.Copy(ioutil.Discard, res.Body)
-		res.Body.Close()
+		if operation == "get" {
+			responseData, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			responseString := string(responseData)
+			log.Println("Compare PUT and GET payload, expected", payloadFile, "content")
+			if responseString != strData {
+				log.Fatal("GET response body different from original PUT, expected:", payloadFile)
+			}
+		} else {
+			io.Copy(ioutil.Discard, res.Body)
 
+		}
+		res.Body.Close()
 		// After a PUT on client hdproxy, get the generated key
 		if operation == "put" && hdType == "client" {
 			randomKey := res.Header.Get("Scal-Key")
@@ -258,7 +279,7 @@ func main() {
 		wgMain.Add(1)
 		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt)
 	}
-	utils.TrafficControl("loss", "10%", 4244)
+	//utils.TrafficControl("loss", "10%", 4244)
 
 	wgMain.Wait()
 
@@ -269,5 +290,5 @@ func main() {
 		log.Println("Instance ID", nrinstances, "Throughput=", thrpt, "Mo/s")
 	}
 
-	utils.DeleteTrafficRules()
+	//utils.DeleteTrafficRules()
 }
