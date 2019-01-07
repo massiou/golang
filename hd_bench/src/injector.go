@@ -258,6 +258,8 @@ func main() {
 		wgMain.Add(1)
 		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt)
 	}
+	utils.TrafficControl("loss", "10%", 4244)
+
 	wgMain.Wait()
 
 	// Get the throughput for each instance
@@ -266,4 +268,6 @@ func main() {
 		thrpt := <-chanThrpt
 		log.Println("Instance ID", nrinstances, "Throughput=", thrpt, "Mo/s")
 	}
+
+	utils.DeleteTrafficRules()
 }

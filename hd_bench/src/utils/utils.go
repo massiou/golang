@@ -167,37 +167,44 @@ func RandomString(len int) string {
 }
 
 // TrafficControl uses tc and netem to simulate network issue on a specific port
-func TrafficControl(qdiscKind, options string, port int) {
-	out, err1 := exec.Command("tc qdisc add dev lo root handle 1: prio priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0").Output()
+func TrafficControl(qdiscKind, options string, port int) bool {
+	out1, err1 := exec.Command("/bin/sh", "-c", "/sbin/tc qdisc add dev lo root handle 1: prio priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0").Output()
 
 	if err1 != nil {
-		log.Fatalf(string(out))
+		DeleteTrafficRules()
+		log.Println("tc qdisc1", out1)
+		log.Fatal(err1)
 	}
 
 	cmdNetem := fmt.Sprintf("tc qdisc add dev lo parent 1:2 handle 20: netem %s %s", qdiscKind, options)
 	log.Println(cmdNetem)
-	outNetem, err2 := exec.Command(cmdNetem).Output()
+	_, err2 := exec.Command("/bin/sh", "-c", cmdNetem).Output()
 
 	if err2 != nil {
-		log.Fatalf(string(outNetem))
+		DeleteTrafficRules()
+		log.Fatal(err2)
 	}
 
 	cmdFilter := fmt.Sprintf("tc filter add dev lo parent 1:0 protocol ip u32 match ip sport %d 0xffff flowid 1:2", port)
 	log.Println(cmdFilter)
-	outFilter, err3 := exec.Command(cmdFilter).Output()
+	_, err3 := exec.Command("/bin/sh", "-c", cmdFilter).Output()
 
 	if err3 != nil {
-		log.Fatalf(string(outFilter))
+		DeleteTrafficRules()
+		log.Fatal(err3)
 	}
 
+	return true
 }
 
 // DeleteTrafficRules deletes all tc rules on lo interface
-func DeleteTrafficRules() {
-	out, err := exec.Command("tc qdisc del dev lo root").Output()
+func DeleteTrafficRules() bool {
+	_, err := exec.Command("/bin/sh", "-c", "tc qdisc del dev lo root").Output()
 
 	if err != nil {
-		log.Fatalf(string(out))
+		log.Fatal(err)
 	}
+
+	return true
 
 }
