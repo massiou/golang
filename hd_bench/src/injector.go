@@ -27,8 +27,6 @@ const (
 	BaseClient = "http://127.0.0.1:18888/"
 	// PortClient : Default client port
 	PortClient = 18888
-	// PortServer : Default server port
-	PortServer         = 4244
 	maxFileDescriptors = 1000
 )
 
@@ -250,9 +248,12 @@ func main() {
 	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
 	nrinstancesPtr := flag.Int("nrinstances", 1, "number of HD clients/servers")
 	nrkeysPtr := flag.Int("nrkeys", 1, "number of keys per goroutine")
-
+	tcKindPtr := flag.String("tc-kind", "", "traffic control kind")
+	tcOptionsPtr := flag.String("tc-opt", "", "traffic control options")
+	tcPortPtr := flag.Int("tc-port", 0, "traffic control port")
 	operations := []string{"put", "get", "del"}
-
+	basePortPtr := flag.Int("port", 4244, "base server port"
+	
 	// Throughput computation channel
 
 	flag.Parse()
@@ -261,7 +262,7 @@ func main() {
 	portBase := 0
 	switch *typePtr {
 	case "server":
-		portBase = PortServer
+		portBase = *basePortPtr
 
 	case "client":
 		portBase = PortClient
@@ -279,8 +280,11 @@ func main() {
 		wgMain.Add(1)
 		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt)
 	}
-	//utils.TrafficControl("loss", "10%", 4244)
 
+	// Launch Traffic Control
+	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
+		utils.TrafficControl(*tcKindPtr, *tcOptionsPtr, *tcPortPtr)
+	}
 	wgMain.Wait()
 
 	// Get the throughput for each instance
@@ -290,5 +294,8 @@ func main() {
 		log.Println("Instance ID", nrinstances, "Throughput=", thrpt, "Mo/s")
 	}
 
-	//utils.DeleteTrafficRules()
+	// Delete Traffic Control
+	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
+		utils.DeleteTrafficRules()
+	}
 }
