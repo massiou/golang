@@ -18,18 +18,6 @@ import (
 	"./utils"
 )
 
-const (
-	// baseServer{1,2,3} hyperdrive servers url
-	baseServer1 = "http://127.0.0.1:4244/"
-	baseServer2 = "http://127.0.0.1:4245/"
-	baseServer3 = "http://127.0.0.1:4246/"
-	// BaseClient Hyperdrive client base url
-	BaseClient = "http://127.0.0.1:18888/"
-	// PortClient : Default client port
-	PortClient = 18888
-	maxFileDescriptors = 1000
-)
-
 // performWorkload
 func performWorkload(
 	hdType string,
@@ -252,31 +240,18 @@ func main() {
 	tcOptionsPtr := flag.String("tc-opt", "", "traffic control options")
 	tcPortPtr := flag.Int("tc-port", 0, "traffic control port")
 	operations := []string{"put", "get", "del"}
-	basePortPtr := flag.Int("port", 4244, "base server port"
-	
-	// Throughput computation channel
+	basePortPtr := flag.Int("port", 4244, "base server port")
+	ipaddrPtr := flag.String("ip", "127.0.0.1", "hd base IP address (server or client)")
 
 	flag.Parse()
 
 	// Main call
-	portBase := 0
-	switch *typePtr {
-	case "server":
-		portBase = *basePortPtr
-
-	case "client":
-		portBase = PortClient
-
-	default:
-		panic("Please choose hd-type in {server, client}, found: " + *typePtr)
-	}
-
 	chanThrpt := make(chan map[string]float64)
 
 	// Launch goroutines in a loop
 	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
-		port := portBase + nrinstances
-		baseURL := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
+		port := *basePortPtr + nrinstances
+		baseURL := "http://" + *ipaddrPtr + ":" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
 		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt)
 	}
