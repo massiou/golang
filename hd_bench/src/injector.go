@@ -252,6 +252,9 @@ func main() {
 	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
 		port := *basePortPtr + nrinstances
 		baseURL := "http://" + *ipaddrPtr + ":" + strconv.Itoa(port) + "/"
+		if *typePtr == "client" {
+			baseURL = baseURL + "proxy/arc/"
+		}
 		wgMain.Add(1)
 		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt)
 	}
