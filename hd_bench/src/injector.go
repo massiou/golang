@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -85,11 +86,11 @@ func performWorkload(
 		totalSize += int(size)
 
 		// Get elapsed time and convert it from nano to seconds
-		elapsed := int(time.Since(start)) / int(math.Pow10(9))
+		elapsed := float64(time.Since(start)) / (math.Pow10(9))
 
 		if elapsed != 0 {
 			// in Mo/s
-			throughput = float64((totalSize / elapsed) / int(math.Pow10(6)))
+			throughput = float64(totalSize) / elapsed / float64(math.Pow10(6))
 			log.Println("operation=", operation, "Throughput: ", throughput, "Mo/s")
 			log.Println("totalSize=", totalSize, "nrkeys=", len(keysGenerated), "elapsed=", elapsed)
 		}
@@ -194,34 +195,18 @@ func mainFunc(
 	// generate nrkeys random keys
 	keys := generateKeys(hdType, nrkeys)
 
-	// Perform PUT operations
-	keys2, throughput := performWorkload(hdType, "put", baseserver, keys, payloadFile, size)
+	var throughput float64
+	var keysPut []string
 
-	// Perform GET operations
-	_, throughputGet := performWorkload(hdType, "get", baseserver, keys2, payloadFile, size)
-
-	// Perform DEL operations
-	_, throughputDel := performWorkload(hdType, "del", baseserver, keys2, payloadFile, size)
-
-	// Perform GET, expected 404
-	client := &http.Client{}
-	for _, key := range keys2 {
-		log.Println("Reget key:", key)
-		opRequest := utils.OpKey(hdType, "get", key, payloadFile, size, baseserver)
-		res, err := client.Do(opRequest)
-		if err != nil {
-			log.Fatal("err=", err)
-		}
-
-		if res.StatusCode != 404 {
-			log.Fatal("status code=", res.StatusCode, "res=", res)
-		}
-
-	}
-
+	// put operation is mandatory
+	keysPut, throughput = performWorkload(hdType, "put", baseserver, keys, payloadFile, size)
 	thrpt["put"] = throughput
-	thrpt["get"] = throughputGet
-	thrpt["del"] = throughputDel
+
+	for i := 0; i < len(operations); i++ {
+		// Perform operations
+		_, throughput = performWorkload(hdType, operations[i], baseserver, keysPut, payloadFile, size)
+		thrpt[operations[i]] = throughput
+	}
 
 	wgMain.Done()
 	chanThpt <- thrpt
@@ -239,14 +224,16 @@ func main() {
 	tcKindPtr := flag.String("tc-kind", "", "traffic control kind")
 	tcOptionsPtr := flag.String("tc-opt", "", "traffic control options")
 	tcPortPtr := flag.Int("tc-port", 0, "traffic control port")
-	operations := []string{"put", "get", "del"}
+	operationsPtr := flag.String("operations", "", "worload operations 'get' or 'del' or 'get del', etc")
 	basePortPtr := flag.Int("port", 4244, "base server port")
 	ipaddrPtr := flag.String("ip", "127.0.0.1", "hd base IP address (server or client)")
 
 	flag.Parse()
 
-	// Main call
 	chanThrpt := make(chan map[string]float64)
+
+	// Get operations to perform
+	operations := strings.Split(*operationsPtr, " ")
 
 	// Launch goroutines in a loop
 	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
