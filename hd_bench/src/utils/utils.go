@@ -69,7 +69,7 @@ func OpKey(hdType string, request string, key string, payloadFile string, size i
 			req, err = http.NewRequest(http.MethodDelete, uri, nil)
 			req.Header.Set("Content-type", "application/x-scality-storage-data")
 		default:
-			panic("Operation not available")
+			panic("Operation: '" + request + "' not available")
 		}
 
 	case "client":
@@ -82,6 +82,8 @@ func OpKey(hdType string, request string, key string, payloadFile string, size i
 			req, err = http.NewRequest(http.MethodGet, uri, nil)
 		case "del":
 			req, err = http.NewRequest(http.MethodDelete, uri, nil)
+		default:
+			panic("Operation: '" + request + "' not available")
 		}
 
 		log.Println("uri=", uri, "req=", req)

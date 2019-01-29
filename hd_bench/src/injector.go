@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
+
 	"./utils"
 )
 
@@ -46,7 +48,7 @@ func performWorkload(
 	// Loop on all keys
 	for _, key := range keys {
 		// Build request
-		log.Println(operation, " key: ", key, "on", baseURL)
+		glog.V(2).Info(operation, " key: ", key, " on ", baseURL)
 		opRequest := utils.OpKey(hdType, operation, key, payloadFile, size, baseURL)
 		res, err := client.Do(opRequest)
 
@@ -58,14 +60,17 @@ func performWorkload(
 			log.Fatal("status code=", res.StatusCode, "res=", res)
 		}
 
-		// Consume the response & Close the request
+		// Compare PUT and GET answer
 		if operation == "get" {
+			// Consume the response
 			responseData, err := ioutil.ReadAll(res.Body)
 			if err != nil {
 				log.Fatal(err)
+
 			}
+
 			responseString := string(responseData)
-			log.Println("Compare PUT and GET payload, expected", payloadFile, "content")
+			glog.V(2).Info("Compare PUT and GET payload, expected ", payloadFile, " content")
 			if responseString != strData {
 				log.Fatal("GET response body different from original PUT, expected:", payloadFile)
 			}
@@ -73,7 +78,10 @@ func performWorkload(
 			io.Copy(ioutil.Discard, res.Body)
 
 		}
+
+		// Close the current request
 		res.Body.Close()
+
 		// After a PUT on client hdproxy, get the generated key
 		if operation == "put" && hdType == "client" {
 			randomKey := res.Header.Get("Scal-Key")
@@ -91,8 +99,9 @@ func performWorkload(
 		if elapsed != 0 {
 			// in Mo/s
 			throughput = float64(totalSize) / elapsed / float64(math.Pow10(6))
-			log.Println("operation=", operation, "Throughput: ", throughput, "Mo/s")
-			log.Println("totalSize=", totalSize, "nrkeys=", len(keysGenerated), "elapsed=", elapsed)
+
+			glog.V(2).Info("operation=", operation, " Throughput: ", throughput, " Mo/s")
+			glog.V(2).Info("totalSize=", totalSize, " nrkeys=", len(keysGenerated), " elapsed=", elapsed)
 		}
 	}
 	if len(keysGenerated) != len(keys) {
@@ -204,8 +213,11 @@ func mainFunc(
 
 	for i := 0; i < len(operations); i++ {
 		// Perform operations
-		_, throughput = performWorkload(hdType, operations[i], baseserver, keysPut, payloadFile, size)
-		thrpt[operations[i]] = throughput
+		operation := operations[i]
+		if operation == "get" || operation == "del" {
+			_, throughput = performWorkload(hdType, operations[i], baseserver, keysPut, payloadFile, size)
+			thrpt[operations[i]] = throughput
+		}
 	}
 
 	wgMain.Done()
