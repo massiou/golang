@@ -30,7 +30,17 @@ func performWorkload(
 	payloadFile string,
 	size int) ([]string, float64) {
 
-	client := &http.Client{}
+	// Customize the Transport to have larger connection pool
+	defaultRoundTripper := http.DefaultTransport
+	defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
+	if !ok {
+		panic(fmt.Sprintf("defaultRoundTripper not an *http.Transport"))
+	}
+	defaultTransport := *defaultTransportPointer // dereference it to get a copy of the struct that the pointer points to
+	defaultTransport.MaxIdleConns = 100
+	defaultTransport.MaxIdleConnsPerHost = 100
+
+	client := &http.Client{Transport: &defaultTransport}
 
 	throughput := 0.0
 	var keysGenerated []string
@@ -46,6 +56,7 @@ func performWorkload(
 	start := time.Now()
 
 	// Loop on all keys
+	glog.V(1).Info("Perform ")
 	for _, key := range keys {
 		// Build request
 		glog.V(2).Info(operation, " key: ", key, " on ", baseURL)
