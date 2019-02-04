@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -100,6 +101,56 @@ func OpKey(hdType string, request string, key string, payloadFile string, size i
 	return req
 }
 
+// getKeysIndex for hyperdrive server
+func getKeysIndex(client *http.Client, baseserver string) ListKeys {
+	var keys ListKeys
+
+	uri := baseserver + "info/index/key/list/"
+
+	req, _ := http.NewRequest(http.MethodGet, uri, nil)
+
+	req.Header.Set("Accept", "application/json")
+
+	res, err := client.Do(req)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer res.Body.Close()
+
+	body, _ := ioutil.ReadAll(res.Body)
+
+	json.Unmarshal(body, &keys)
+
+	return keys
+}
+
+// getGroupsIndex for hyperdrive server
+func getGroupsIndex(client *http.Client, baseserver string) ListGroups {
+	var groups ListGroups
+
+	uri := baseserver + "info/index/group/list/"
+
+	req, _ := http.NewRequest(http.MethodGet, uri, nil)
+
+	req.Header.Set("Accept", "application/json")
+
+	res, err := client.Do(req)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer res.Body.Close()
+
+	body, _ := ioutil.ReadAll(res.Body)
+
+	json.Unmarshal(body, &groups)
+
+	return groups
+}
+
 // GetKeyClient hyperdrive client
 func GetKeyClient(hdType string, key, BaseClient string) *http.Request {
 	uri := BaseClient + key
@@ -152,6 +203,26 @@ func DelKeyClient(key, baseclient string) *http.Request {
 	}
 
 	return req
+}
+
+//GenerateKeys returns a list of generated keys
+func GenerateKeys(hdType string, nrkeys int) []string {
+	var keys []string
+
+	// Store a random number to identify the current instance
+	rand.Seed(time.Now().UTC().UnixNano())
+	number := rand.Intn(1000)
+	key := "defaultKey"
+	for elt := 0; elt < nrkeys; elt++ {
+		// Generate key
+		if hdType == "server" {
+			key = GenerateKey(64)
+		} else if hdType == "client" {
+			key = fmt.Sprintf("dir-%d/obj-%d", number, elt)
+		}
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 // Returns an int >= min, < max

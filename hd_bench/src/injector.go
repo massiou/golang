@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -122,76 +120,6 @@ func performWorkload(
 	return keysGenerated, throughput
 }
 
-// getKeysIndex for hyperdrive server
-func getKeysIndex(client *http.Client, baseserver string) utils.ListKeys {
-	var keys utils.ListKeys
-
-	uri := baseserver + "info/index/key/list/"
-
-	req, _ := http.NewRequest(http.MethodGet, uri, nil)
-
-	req.Header.Set("Accept", "application/json")
-
-	res, err := client.Do(req)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer res.Body.Close()
-
-	body, _ := ioutil.ReadAll(res.Body)
-
-	json.Unmarshal(body, &keys)
-
-	return keys
-}
-
-// getGroupsIndex for hyperdrive server
-func getGroupsIndex(client *http.Client, baseserver string) utils.ListGroups {
-	var groups utils.ListGroups
-
-	uri := baseserver + "info/index/group/list/"
-
-	req, _ := http.NewRequest(http.MethodGet, uri, nil)
-
-	req.Header.Set("Accept", "application/json")
-
-	res, err := client.Do(req)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer res.Body.Close()
-
-	body, _ := ioutil.ReadAll(res.Body)
-
-	json.Unmarshal(body, &groups)
-
-	return groups
-}
-
-//generateKeys
-func generateKeys(hdType string, nrkeys int) []string {
-	var keys []string
-
-	// Store a random number to identify the current instance
-	rand.Seed(time.Now().UTC().UnixNano())
-	number := rand.Intn(1000)
-	key := "defaultKey"
-	for elt := 0; elt < nrkeys; elt++ {
-		// Generate key
-		if hdType == "server" {
-			key = utils.GenerateKey(64)
-		} else if hdType == "client" {
-			key = fmt.Sprintf("dir-%d/obj-%d", number, elt)
-		}
-		keys = append(keys, key)
-	}
-	return keys
-}
-
 func mainFunc(
 	hdType string,
 	operations []string,
@@ -213,7 +141,7 @@ func mainFunc(
 	size := int(fi.Size())
 
 	// generate nrkeys random keys
-	keys := generateKeys(hdType, nrkeys)
+	keys := utils.GenerateKeys(hdType, nrkeys)
 
 	var throughput float64
 	var keysPut []string
