@@ -19,15 +19,7 @@ import (
 	"./utils"
 )
 
-// performWorkload
-func performWorkload(
-	hdType string,
-	operation string,
-	baseURL string,
-	keys []string,
-	payloadFile string,
-	size int) ([]string, float64) {
-
+func customClient(maxConnections int) *http.Client {
 	// Customize the Transport to have larger connection pool
 	defaultRoundTripper := http.DefaultTransport
 	defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
@@ -40,21 +32,27 @@ func performWorkload(
 
 	client := &http.Client{Transport: &defaultTransport}
 
+	return client
+}
+
+// performWorkload
+func performWorkload(
+	hdType string,
+	operation string,
+	baseURL string,
+	keys []string,
+	payloadFile string,
+	size int) ([]string, float64) {
+
+	client := customClient(100) // HTTP client
+
 	throughput := 0.0
 	var keysGenerated []string
 	var totalSize int
 
-	// Convert payloadFile into string for GET comparisons
-	data, err := ioutil.ReadFile(payloadFile)
-	if err != nil {
-		log.Println(err)
-	}
-	strData := string(data)
-
 	start := time.Now()
 
 	// Loop on all keys
-	glog.V(1).Info("Perform ")
 	for _, key := range keys {
 		// Build request
 		glog.V(2).Info(operation, " key: ", key, " on ", baseURL)
@@ -64,28 +62,17 @@ func performWorkload(
 		if err != nil {
 			log.Fatal("err=", err)
 		}
-
 		if res.StatusCode >= 300 {
 			log.Fatal("status code=", res.StatusCode, "res=", res)
 		}
-
 		// Compare PUT and GET answer
 		if operation == "get" {
-			// Consume the response
-			responseData, err := ioutil.ReadAll(res.Body)
-			if err != nil {
-				log.Fatal(err)
-
-			}
-
-			responseString := string(responseData)
-			glog.V(2).Info("Compare PUT and GET payload, expected ", payloadFile, " content")
-			if responseString != strData {
+			comparison := compareGetPut(payloadFile, res)
+			if comparison == false {
 				log.Fatal("GET response body different from original PUT, expected:", payloadFile)
 			}
 		} else {
 			io.Copy(ioutil.Discard, res.Body)
-
 		}
 
 		// Close the current request
@@ -108,7 +95,6 @@ func performWorkload(
 		if elapsed != 0 {
 			// in Mo/s
 			throughput = float64(totalSize) / elapsed / float64(math.Pow10(6))
-
 			glog.V(2).Info("operation=", operation, " Throughput: ", throughput, " Mo/s")
 			glog.V(2).Info("totalSize=", totalSize, " nrkeys=", len(keysGenerated), " elapsed=", elapsed)
 		}
@@ -118,6 +104,22 @@ func performWorkload(
 		panic("Keys generated != keys")
 	}
 	return keysGenerated, throughput
+}
+
+func compareGetPut(file string, res *http.Response) bool {
+	// Convert payloadFile into string for GET comparisons
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Println(err)
+	}
+	strData := string(data)
+	// Consume the response
+	responseData, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Return comparison status
+	return string(responseData) == strData
 }
 
 func mainFunc(
@@ -150,6 +152,7 @@ func mainFunc(
 	keysPut, throughput = performWorkload(hdType, "put", baseserver, keys, payloadFile, size)
 	thrpt["put"] = throughput
 
+	// Loop on optional operations 'GET' and/or 'DELETE'
 	for i := 0; i < len(operations); i++ {
 		// Perform operations
 		operation := operations[i]
@@ -205,7 +208,6 @@ func main() {
 
 	// Get the throughput for each instance
 	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
-		//log.Println("Wait for chan")
 		thrpt := <-chanThrpt
 		log.Println("Instance ID", nrinstances, "Throughput=", thrpt, "Mo/s")
 	}

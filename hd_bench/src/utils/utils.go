@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -12,16 +13,16 @@ import (
 	"time"
 )
 
-type ListKeys struct {
-	Keys []Key `json:"keys"`
+type listKeys struct {
+	Keys []key `json:"keys"`
 }
 
-type Key struct {
-	Key     string `json:"key"`
+type key struct {
+	key     string `json:"key"`
 	Version int    `json:"version"`
 }
 
-type ListGroups struct {
+type listGroups struct {
 	Groups []string `json: "groups"`
 }
 
@@ -43,55 +44,28 @@ func GenerateKey(length int) string {
 }
 
 // OpKey PUT/GET/DELETE function
-func OpKey(hdType string, request string, key string, payloadFile string, size int, baseURL string) *http.Request {
+func OpKey(
+	hdType string, // server or client
+	request string,
+	key string,
+	payloadFile string,
+	size int,
+	baseURL string) *http.Request {
 
 	payload, _ := ioutil.ReadFile(payloadFile)
 	data := strings.NewReader(string(payload))
 
 	req := &http.Request{}
 	var err error
-	headersValue := ""
 	uri := ""
 
 	switch hdType {
 	case "server":
-		uri = baseURL + "store/" + key
-
-		switch request {
-		case "put":
-			req, err = http.NewRequest(http.MethodPut, uri, data)
-			// Set headers value with relevant payload size
-			headersValue = fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
-			req.Header.Set("Content-type", headersValue)
-		case "get":
-			req, err = http.NewRequest(http.MethodGet, uri, nil)
-			req.Header.Set("Accept", "application/x-scality-storage-data;meta;usermeta;data")
-		case "del":
-			req, err = http.NewRequest(http.MethodDelete, uri, nil)
-			req.Header.Set("Content-type", "application/x-scality-storage-data")
-		default:
-			panic("Operation: '" + request + "' not available")
-		}
-
+		req, err = opKeyServer(request, key, baseURL, data, size)
 	case "client":
-		uri = baseURL + "proxy/arc/" + key
-
-		switch request {
-		case "put":
-			req, err = http.NewRequest(http.MethodPost, uri, data)
-		case "get":
-			req, err = http.NewRequest(http.MethodGet, uri, nil)
-		case "del":
-			req, err = http.NewRequest(http.MethodDelete, uri, nil)
-		default:
-			panic("Operation: '" + request + "' not available")
-		}
-
-		log.Println("uri=", uri, "req=", req)
-
+		req, err = opKeyClient(request, key, baseURL, data, size)
 	default:
 		panic("hd-type must be in {server, client}, found: " + hdType)
-
 	}
 
 	if err != nil {
@@ -101,9 +75,63 @@ func OpKey(hdType string, request string, key string, payloadFile string, size i
 	return req
 }
 
+func opKeyServer(
+	request string,
+	key string,
+	baseURL string,
+	data io.Reader,
+	size int) (*http.Request, error) {
+
+	req := &http.Request{}
+	var err error
+	headersValue := ""
+	uri := baseURL + "store/" + key
+	switch request {
+	case "put":
+		req, err = http.NewRequest(http.MethodPut, uri, data)
+		// Set headers value with relevant payload size
+		headersValue = fmt.Sprintf("%s%d;", "application/x-scality-storage-data;data=", size)
+		req.Header.Set("Content-type", headersValue)
+	case "get":
+		req, err = http.NewRequest(http.MethodGet, uri, nil)
+		headersValue = "application/x-scality-storage-data;meta;usermeta;data"
+		req.Header.Set("Accept", headersValue)
+	case "del":
+		req, err = http.NewRequest(http.MethodDelete, uri, nil)
+		headersValue = "application/x-scality-storage-data"
+		req.Header.Set("Content-type", headersValue)
+	default:
+		panic("Operation: '" + request + "' not available")
+	}
+	return req, err
+}
+
+func opKeyClient(
+	request string,
+	key string,
+	baseURL string,
+	data io.Reader,
+	size int) (*http.Request, error) {
+
+	req := &http.Request{}
+	var err error
+	uri := baseURL + "proxy/arc/" + key
+	switch request {
+	case "put":
+		req, err = http.NewRequest(http.MethodPost, uri, data)
+	case "get":
+		req, err = http.NewRequest(http.MethodGet, uri, nil)
+	case "del":
+		req, err = http.NewRequest(http.MethodDelete, uri, nil)
+	default:
+		panic("Operation: '" + request + "' not available")
+	}
+	return req, err
+}
+
 // getKeysIndex for hyperdrive server
-func getKeysIndex(client *http.Client, baseserver string) ListKeys {
-	var keys ListKeys
+func getKeysIndex(client *http.Client, baseserver string) listKeys {
+	var keys listKeys
 
 	uri := baseserver + "info/index/key/list/"
 
@@ -127,8 +155,8 @@ func getKeysIndex(client *http.Client, baseserver string) ListKeys {
 }
 
 // getGroupsIndex for hyperdrive server
-func getGroupsIndex(client *http.Client, baseserver string) ListGroups {
-	var groups ListGroups
+func getGroupsIndex(client *http.Client, baseserver string) listGroups {
+	var groups listGroups
 
 	uri := baseserver + "info/index/group/list/"
 
