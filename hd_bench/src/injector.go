@@ -19,32 +19,16 @@ import (
 	"./utils"
 )
 
-func customClient(maxConnections int) *http.Client {
-	// Customize the Transport to have larger connection pool
-	defaultRoundTripper := http.DefaultTransport
-	defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
-	if !ok {
-		panic(fmt.Sprintf("defaultRoundTripper not an *http.Transport"))
-	}
-	defaultTransport := *defaultTransportPointer // dereference it to get a copy of the struct that the pointer points to
-	defaultTransport.MaxIdleConns = 100
-	defaultTransport.MaxIdleConnsPerHost = 100
-
-	client := &http.Client{Transport: &defaultTransport}
-
-	return client
-}
-
 // performWorkload
 func performWorkload(
-	hdType string,
-	operation string,
+	hdType string, // server or client
+	operation string, // PUT / GET / DELETE
 	baseURL string,
-	keys []string,
+	keys []string, // list of keys
 	payloadFile string,
 	size int) ([]string, float64) {
 
-	client := customClient(100) // HTTP client
+	client := utils.CustomClient(100) // HTTP client
 
 	throughput := 0.0
 	var keysGenerated []string
@@ -131,6 +115,8 @@ func mainFunc(
 	wgMain *sync.WaitGroup,
 	chanThpt chan map[string]float64) {
 
+	defer wgMain.Done()
+
 	thrpt := make(map[string]float64)
 
 	// Payload size is needed for PUT header and to compute throughput
@@ -162,7 +148,6 @@ func mainFunc(
 		}
 	}
 
-	wgMain.Done()
 	chanThpt <- thrpt
 }
 

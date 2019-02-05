@@ -26,6 +26,23 @@ type listGroups struct {
 	Groups []string `json: "groups"`
 }
 
+func CustomClient(maxConnections int) *http.Client {
+	// Customize the Transport to have larger connection pool
+	defaultRoundTripper := http.DefaultTransport
+	defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
+	if !ok {
+		panic(fmt.Sprintf("defaultRoundTripper not an *http.Transport"))
+	}
+	// dereference it to get a copy of the struct that the pointer points to
+	defaultTransport := *defaultTransportPointer
+	defaultTransport.MaxIdleConns = 100
+	defaultTransport.MaxIdleConnsPerHost = 100
+
+	client := &http.Client{Transport: &defaultTransport}
+
+	return client
+}
+
 // GenerateKey generates hyperdrive server key
 func GenerateKey(length int) string {
 	// Change seed explicitly
