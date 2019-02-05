@@ -115,8 +115,6 @@ func mainFunc(
 	wgMain *sync.WaitGroup,
 	chanThpt chan map[string]float64) {
 
-	defer wgMain.Done()
-
 	thrpt := make(map[string]float64)
 
 	// Payload size is needed for PUT header and to compute throughput
@@ -147,7 +145,7 @@ func mainFunc(
 			thrpt[operations[i]] = throughput
 		}
 	}
-
+	wgMain.Done()
 	chanThpt <- thrpt
 }
 
