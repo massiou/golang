@@ -27,11 +27,11 @@ func performWorkload(
 	keys []string, // list of keys
 	payloadFile string,
 	size int,
+	chanThrpt chan float64,
 	wg *sync.WaitGroup) {
 
 	client := utils.CustomClient(100) // HTTP client
 
-	throughput := 0.0
 	var keysGenerated []string
 	var totalSize int
 
@@ -74,23 +74,33 @@ func performWorkload(
 		// Update total put size
 		totalSize += int(size)
 
-		// Get elapsed time and convert it from nano to seconds
-		elapsed := float64(time.Since(start)) / (math.Pow10(9))
-
-		if elapsed != 0 {
-			// in Mo/s
-			throughput = float64(totalSize) / elapsed / float64(math.Pow10(6))
-			glog.V(2).Info("operation=", operation, " Throughput: ", throughput, " Mo/s")
-			glog.V(2).Info("totalSize=", totalSize, " nrkeys=", len(keysGenerated), " elapsed=", elapsed)
-		}
 	}
 	if len(keysGenerated) != len(keys) {
 		fmt.Println("nr keys generated=", len(keysGenerated), "nr keys=", len(keys))
 		panic("Keys generated != keys")
 	}
-	log.Println(throughput)
+
 	wg.Done()
+
+	chanThrpt <- getThroughput(start, totalSize)
+	//close(chanThrpt)
 	//return keysGenerated, throughput
+}
+
+func getThroughput(start time.Time, size int) float64 {
+	var throughput float64
+	elapsed := float64(time.Since(start)) / math.Pow10(9)
+
+	log.Println(elapsed)
+	log.Println(size)
+
+	if elapsed != 0 {
+		// in Mo/s
+		throughput = float64(size) / elapsed
+		glog.V(2).Info("Throughput: ", throughput, " Mo/s")
+	}
+	log.Println(throughput)
+	return throughput
 }
 
 func compareGetPut(file string, res *http.Response) bool {
@@ -109,6 +119,16 @@ func compareGetPut(file string, res *http.Response) bool {
 	return string(responseData) == strData
 }
 
+func getFileSize(path string) int {
+	// Payload size is needed for PUT header and to compute throughput
+	fi, errSize := os.Stat(path)
+
+	if errSize != nil {
+		log.Fatal("os.Stat() of", path, "error:", errSize)
+	}
+	return int(fi.Size())
+}
+
 func mainFunc(
 	hdType string,
 	operations []string,
@@ -116,24 +136,11 @@ func mainFunc(
 	nrkeys int,
 	payloadFile string,
 	wgMain *sync.WaitGroup,
-	chanThpt chan map[string]float64,
+	chanThrpt chan float64,
 	workers int) {
 
 	var wgWorkload sync.WaitGroup
-
-	thrpt := make(map[string]float64)
-
-	// Payload size is needed for PUT header and to compute throughput
-	fi, errSize := os.Stat(payloadFile)
-
-	if errSize != nil {
-		log.Fatal("os.Stat() of", payloadFile, "error:", errSize)
-	}
-	// get the size
-	size := int(fi.Size())
-
-	var throughput float64
-	var keysPut []string
+	size := getFileSize(payloadFile)
 
 	// put operation is mandatory
 	//keysPut, throughput = performWorkload(hdType, "put", baseserver, keys, payloadFile, size)
@@ -142,7 +149,7 @@ func mainFunc(
 		keys := utils.GenerateKeys(hdType, nrkeys)
 
 		wgWorkload.Add(1)
-		go performWorkload(hdType, "put", baseserver, keys, payloadFile, size, &wgWorkload)
+		go performWorkload(hdType, "put", baseserver, keys, payloadFile, size, chanThrpt, &wgWorkload)
 
 		//thrpt["put"] = throughput
 
@@ -151,21 +158,20 @@ func mainFunc(
 			// Perform operations
 			operation := operations[i]
 			if operation == "get" || operation == "del" {
-				wgWorkload.Add(1)
+				//wgWorkload.Add(1)
 				//_, throughput = performWorkload(hdType, operations[i], baseserver, keysPut, payloadFile, size, wgWorkload)
-				go performWorkload(hdType, operations[i], baseserver, keysPut, payloadFile, size, &wgWorkload)
-				thrpt[operations[i]] = throughput
+				//go performWorkload(hdType, operations[i], baseserver, keysPut, payloadFile, size, &wgWorkload)
+				//thrpt[operations[i]] = throughput
 			}
 		}
 	}
 	wgWorkload.Wait()
 	wgMain.Done()
-	chanThpt <- thrpt
 }
 
 func main() {
 	var wgMain sync.WaitGroup
-
+	start := time.Now()
 	// Arguments
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
 	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
@@ -181,8 +187,7 @@ func main() {
 
 	flag.Parse()
 
-	chanThrpt := make(chan map[string]float64)
-
+	chanThrpt := make(chan float64)
 	// Get operations to perform
 	operations := strings.Split(*operationsPtr, " ")
 
@@ -197,19 +202,27 @@ func main() {
 		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt, *nrworkersPtr)
 
 	}
-	wgMain.Wait()
 
-	log.Println("out of scope")
+	go func() {
+		defer close(chanThrpt)
+		wgMain.Wait()
+	}()
+
 	// Launch Traffic Control
 	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
 		utils.TrafficControl(*tcKindPtr, *tcOptionsPtr, *tcPortPtr)
 	}
+	//var finalThr float64
+	idx := 0
+	for thr := range chanThrpt {
+		log.Println("worker", idx, "throughput=", thr/math.Pow10(6), "Mo/s")
+		idx++
+	}
 
-	// Get the throughput for each instance
-	// for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
-	// 	thrpt := <-chanThrpt
-	// 	log.Println("Instance ID", nrinstances, "Throughput=", thrpt, "Mo/s")
-	// }
+	totalSize := (*nrworkersPtr) * (*nrkeysPtr) * getFileSize(*payloadPtr)
+	finalThr := getThroughput(start, totalSize)
+
+	log.Println("Total throughput:", finalThr/math.Pow10(6), "Mo/s")
 
 	// Delete Traffic Control
 	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
