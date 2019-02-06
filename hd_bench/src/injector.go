@@ -116,7 +116,8 @@ func mainFunc(
 	nrkeys int,
 	payloadFile string,
 	wgMain *sync.WaitGroup,
-	chanThpt chan map[string]float64) {
+	chanThpt chan map[string]float64,
+	workers int) {
 
 	var wgWorkload sync.WaitGroup
 
@@ -136,7 +137,7 @@ func mainFunc(
 
 	// put operation is mandatory
 	//keysPut, throughput = performWorkload(hdType, "put", baseserver, keys, payloadFile, size)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < workers; i++ {
 		// generate nrkeys random keys
 		keys := utils.GenerateKeys(hdType, nrkeys)
 
@@ -157,10 +158,7 @@ func mainFunc(
 			}
 		}
 	}
-	log.Println("Wait here")
 	wgWorkload.Wait()
-	log.Println("Wait here2")
-
 	wgMain.Done()
 	chanThpt <- thrpt
 }
@@ -179,6 +177,7 @@ func main() {
 	operationsPtr := flag.String("operations", "", "worload operations 'get' or 'del' or 'get del', etc")
 	basePortPtr := flag.Int("port", 4244, "base server port")
 	ipaddrPtr := flag.String("ip", "127.0.0.1", "hd base IP address (server or client)")
+	nrworkersPtr := flag.Int("w", 10, "number of injector workers ")
 
 	flag.Parse()
 
@@ -195,7 +194,7 @@ func main() {
 			baseURL = baseURL + "proxy/arc/"
 		}
 		wgMain.Add(1)
-		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt)
+		go mainFunc(*typePtr, operations, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt, *nrworkersPtr)
 
 	}
 	wgMain.Wait()
