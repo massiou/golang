@@ -17,8 +17,9 @@ type listKeys struct {
 	Keys []key `json:"keys"`
 }
 
+// Key server struct
 type key struct {
-	key     string `json:"key"`
+	Key     string `json:"key"`
 	Version int    `json:"version"`
 }
 
