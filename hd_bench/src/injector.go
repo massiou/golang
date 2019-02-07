@@ -39,7 +39,6 @@ func performWorkload(
 	start := time.Now()
 
 	for _, operation := range opArray {
-
 		// Loop on all keys
 		for _, key := range keys {
 			// Build request
@@ -68,15 +67,17 @@ func performWorkload(
 
 			// After a PUT on client hdproxy, get the generated key
 			if operation == "put" && hdType == "client" {
-				randomKey := res.Header.Get("Scal-Key")
-				keysGenerated = append(keysGenerated, randomKey)
-			} else {
-				keysGenerated = append(keysGenerated, key)
+				gKey := res.Header.Get("Scal-Key")
+				keysGenerated = append(keysGenerated, gKey)
 			}
 
 			// Update total put size
 			totalSize += int(size)
 		}
+		if operation == "put" && hdType == "client" {
+			keys = keysGenerated
+		}
+
 	}
 	if len(keysGenerated) != len(keys) {
 		fmt.Println("nr keys generated=", len(keysGenerated), "nr keys=", len(keys))
