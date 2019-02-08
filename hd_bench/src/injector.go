@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -79,11 +78,6 @@ func performWorkload(
 		}
 
 	}
-	if len(keysGenerated) != len(keys) {
-		fmt.Println("nr keys generated=", len(keysGenerated), "nr keys=", len(keys))
-		panic("Keys generated != keys")
-	}
-
 	wg.Done()
 
 	chanThrpt <- getThroughput(start, totalSize)
