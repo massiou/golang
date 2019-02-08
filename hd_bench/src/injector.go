@@ -158,7 +158,6 @@ func mainFunc(
 
 func main() {
 	var wgMain sync.WaitGroup
-	start := time.Now()
 	// Arguments
 	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
 	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
@@ -167,7 +166,7 @@ func main() {
 	tcKindPtr := flag.String("tc-kind", "", "traffic control kind")
 	tcOptionsPtr := flag.String("tc-opt", "", "traffic control options")
 	tcPortPtr := flag.Int("tc-port", 0, "traffic control port")
-	operationsPtr := flag.String("operations", "", "worload operations 'get' or 'del' or 'get del', etc")
+	operationsPtr := flag.String("operations", "put", "worload operations 'put' or 'put get' or 'put del' or 'put get del'")
 	basePortPtr := flag.Int("port", 4244, "base server port")
 	ipaddrPtr := flag.String("ip", "127.0.0.1", "hd base IP address (server or client)")
 	nrworkersPtr := flag.Int("w", 10, "number of injector workers ")
@@ -176,13 +175,12 @@ func main() {
 
 	chanThrpt := make(chan float64)
 
+	start := time.Now()
+
 	// Launch goroutines in a loop
 	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
 		port := *basePortPtr + nrinstances
 		baseURL := "http://" + *ipaddrPtr + ":" + strconv.Itoa(port) + "/"
-		if *typePtr == "client" {
-			baseURL = baseURL + "proxy/arc/"
-		}
 		wgMain.Add(1)
 		go mainFunc(*typePtr, *operationsPtr, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt, *nrworkersPtr)
 
@@ -197,7 +195,6 @@ func main() {
 	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
 		utils.TrafficControl(*tcKindPtr, *tcOptionsPtr, *tcPortPtr)
 	}
-	//var finalThr float64
 	idx := 0
 	for thr := range chanThrpt {
 		log.Println("worker", idx, "throughput=", thr/math.Pow10(6), "Mo/s")
