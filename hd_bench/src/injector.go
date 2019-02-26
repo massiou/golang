@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-
-	"./utils"
 )
 
 // performWorkload
@@ -29,7 +27,7 @@ func performWorkload(
 	chanThrpt chan float64,
 	wg *sync.WaitGroup) {
 
-	client := utils.CustomClient(100) // HTTP client
+	client := CustomClient(100) // HTTP client
 	opArray := strings.Split(operations, " ")
 
 	var keysGenerated []string
@@ -42,15 +40,15 @@ func performWorkload(
 		for _, key := range keys {
 			// Build request
 			glog.V(2).Info(operation, " key: ", key, " on ", baseURL)
-			opRequest := utils.OpKey(hdType, operation, key, payloadFile, size, baseURL)
+			opRequest := OpKey(hdType, operation, key, payloadFile, size, baseURL)
 			res, err := client.Do(opRequest)
 
 			if err != nil {
 				log.Fatal("err=", err)
 			}
-			if res.StatusCode >= 300 {
-				log.Fatal("status code=", res.StatusCode, "res=", res)
-			}
+			//if res.StatusCode >= 300 {
+			//	log.Fatal("status code=", res.StatusCode, "res=", res)
+			//}
 			// Compare PUT and GET answer
 			if operation == "get" {
 				comparison := compareGetPut(payloadFile, res)
@@ -140,7 +138,7 @@ func mainFunc(
 
 	for i := 0; i < workers; i++ {
 		// generate nrkeys random keys
-		keys := utils.GenerateKeys(hdType, nrkeys)
+		keys := GenerateKeys(hdType, nrkeys)
 
 		wgWorkload.Add(1)
 		go performWorkload(hdType, operations, baseserver, keys, payloadFile, size, chanThrpt, &wgWorkload)
@@ -187,7 +185,7 @@ func main() {
 
 	// Launch Traffic Control
 	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
-		utils.TrafficControl(*tcKindPtr, *tcOptionsPtr, *tcPortPtr)
+		TrafficControl(*tcKindPtr, *tcOptionsPtr, *tcPortPtr)
 	}
 	idx := 0
 	for thr := range chanThrpt {
@@ -202,6 +200,6 @@ func main() {
 
 	// Delete Traffic Control
 	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
-		utils.DeleteTrafficRules()
+		DeleteTrafficRules()
 	}
 }
