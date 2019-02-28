@@ -16,6 +16,19 @@ import (
 	"github.com/golang/glog"
 )
 
+// Initialize arguments
+var hdType = flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
+var payload = flag.String("payload-file", "/etc/hosts", "payload file")
+var nrinstances = flag.Int("nrinstances", 1, "number of HD clients/servers")
+var nrkeys = flag.Int("nrkeys", 1, "number of keys per goroutine")
+var tcKind = flag.String("tc-kind", "", "traffic control kind")
+var tcOptions = flag.String("tc-opt", "", "traffic control options")
+var tcPort = flag.Int("tc-port", 0, "traffic control port")
+var operations = flag.String("operations", "put", "worload operations 'put' or 'put get' or 'put del' or 'put get del'")
+var basePort = flag.Int("port", 4244, "base server port")
+var ipaddr = flag.String("ip", "127.0.0.1", "hd base IP address (server or client)")
+var nrworkers = flag.Int("w", 10, "number of injector workers ")
+
 // performWorkload
 func performWorkload(
 	hdType string, // server or client
@@ -46,9 +59,6 @@ func performWorkload(
 			if err != nil {
 				log.Fatal("err=", err)
 			}
-			//if res.StatusCode >= 300 {
-			//	log.Fatal("status code=", res.StatusCode, "res=", res)
-			//}
 			// Compare PUT and GET answer
 			if operation == "get" {
 				comparison := compareGetPut(payloadFile, res)
@@ -58,7 +68,6 @@ func performWorkload(
 			} else {
 				io.Copy(ioutil.Discard, res.Body)
 			}
-
 			// Close the current request
 			res.Body.Close()
 
@@ -67,17 +76,14 @@ func performWorkload(
 				gKey := res.Header.Get("Scal-Key")
 				keysGenerated = append(keysGenerated, gKey)
 			}
-
 			// Update total put size
 			totalSize += int(size)
 		}
 		if operation == "put" && hdType == "client" {
 			keys = keysGenerated
 		}
-
 	}
 	wg.Done()
-
 	chanThrpt <- getThroughput(start, totalSize)
 }
 
@@ -150,42 +156,28 @@ func mainFunc(
 
 func main() {
 	var wgMain sync.WaitGroup
-	// Arguments
-	typePtr := flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
-	payloadPtr := flag.String("payload-file", "/etc/hosts", "payload file")
-	nrinstancesPtr := flag.Int("nrinstances", 1, "number of HD clients/servers")
-	nrkeysPtr := flag.Int("nrkeys", 1, "number of keys per goroutine")
-	tcKindPtr := flag.String("tc-kind", "", "traffic control kind")
-	tcOptionsPtr := flag.String("tc-opt", "", "traffic control options")
-	tcPortPtr := flag.Int("tc-port", 0, "traffic control port")
-	operationsPtr := flag.String("operations", "put", "worload operations 'put' or 'put get' or 'put del' or 'put get del'")
-	basePortPtr := flag.Int("port", 4244, "base server port")
-	ipaddrPtr := flag.String("ip", "127.0.0.1", "hd base IP address (server or client)")
-	nrworkersPtr := flag.Int("w", 10, "number of injector workers ")
-
-	flag.Parse()
-
 	chanThrpt := make(chan float64)
-
 	start := time.Now()
 
+	// Parse command-line arguments
+	flag.Parse()
+
 	// Launch goroutines in a loop
-	for nrinstances := 0; nrinstances < *nrinstancesPtr; nrinstances++ {
-		port := *basePortPtr + nrinstances
-		baseURL := "http://" + *ipaddrPtr + ":" + strconv.Itoa(port) + "/"
+	for nri := 0; nri < *nrinstances; nri++ {
+		port := *basePort + nri
+		baseURL := "http://" + *ipaddr + ":" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
-		go mainFunc(*typePtr, *operationsPtr, baseURL, *nrkeysPtr, *payloadPtr, &wgMain, chanThrpt, *nrworkersPtr)
+		go mainFunc(*hdType, *operations, baseURL, *nrkeys, *payload, &wgMain, chanThrpt, *nrworkers)
 
 	}
-
 	go func() {
 		defer close(chanThrpt)
 		wgMain.Wait()
 	}()
 
 	// Launch Traffic Control
-	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
-		TrafficControl(*tcKindPtr, *tcOptionsPtr, *tcPortPtr)
+	if *tcKind != "" && *tcOptions != "" && *tcPort != 0 {
+		TrafficControl(*tcKind, *tcOptions, *tcPort)
 	}
 	idx := 0
 	for thr := range chanThrpt {
@@ -193,13 +185,13 @@ func main() {
 		idx++
 	}
 
-	totalSize := (*nrworkersPtr) * (*nrkeysPtr) * getFileSize(*payloadPtr)
+	totalSize := (*nrworkers) * (*nrkeys) * getFileSize(*payload)
 	finalThr := getThroughput(start, totalSize)
 
 	log.Println("Total throughput:", finalThr/math.Pow10(6), "Mo/s")
 
 	// Delete Traffic Control
-	if *tcKindPtr != "" && *tcOptionsPtr != "" && *tcPortPtr != 0 {
+	if *tcKind != "" && *tcOptions != "" && *tcPort != 0 {
 		DeleteTrafficRules()
 	}
 }
