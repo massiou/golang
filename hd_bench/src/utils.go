@@ -133,7 +133,7 @@ func opKeyClient(
 
 	req := &http.Request{}
 	var err error
-	uri := baseURL + "proxy/arc/" + key
+	uri := baseURL + "store/" + key
 	switch request {
 	case "put":
 		req, err = http.NewRequest(http.MethodPost, uri, data)
