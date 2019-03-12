@@ -45,10 +45,11 @@ func performWorkload(
 
 	var keysGenerated []string
 	var totalSize int
-
+	var errors int
 	start := time.Now()
 
 	for _, operation := range opArray {
+		errors = 0
 		// Loop on all keys
 		for _, key := range keys {
 			// Build request
@@ -59,6 +60,11 @@ func performWorkload(
 			if err != nil {
 				log.Fatal("err=", err)
 			}
+			if res.StatusCode >= 300 {
+				log.Println("status code=", res.StatusCode, "res=", res)
+				errors++
+			}
+
 			// Compare PUT and GET answer
 			if operation == "get" {
 				comparison := compareGetPut(payloadFile, res)
@@ -71,7 +77,7 @@ func performWorkload(
 			// Close the current request
 			res.Body.Close()
 
-			// After a PUT on client hdproxy, get the generated key
+			// After a PUT on client hdproxy, get the generate key
 			if operation == "put" && hdType == "client" {
 				gKey := res.Header.Get("Scal-Key")
 				keysGenerated = append(keysGenerated, gKey)
@@ -85,6 +91,8 @@ func performWorkload(
 	}
 	wg.Done()
 	chanThrpt <- getThroughput(start, totalSize)
+
+	log.Println("nr errors=", errors)
 }
 
 func getThroughput(start time.Time, size int) float64 {
@@ -168,7 +176,6 @@ func main() {
 		baseURL := "http://" + *ipaddr + ":" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
 		go mainFunc(*hdType, *operations, baseURL, *nrkeys, *payload, &wgMain, chanThrpt, *nrworkers)
-
 	}
 	go func() {
 		defer close(chanThrpt)
