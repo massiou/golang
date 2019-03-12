@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestPerformWorkload(t *testing.T) {
+func TestOpKey(t *testing.T) {
 
 	// Test file path and size
 	fileTest := "/etc/hosts"
@@ -17,26 +17,32 @@ func TestPerformWorkload(t *testing.T) {
 		hdType    string
 		operation string
 		baseurl   string
-		keys      []string
+		key       string
 		file      string
 		fileSize  int
 	}
 
 	// Generate use cases for server
 	var testworkload []test
-	testworkload = append(testworkload, test{"server", "put", "http://127.0.0.1:4244/", []string{"key0"}, fileTest, size})
-	testworkload = append(testworkload, test{"server", "get", "http://127.0.0.1:4244/", []string{"key0"}, fileTest, size})
-	testworkload = append(testworkload, test{"server", "del", "http://127.0.0.1:4244/", []string{"key0"}, fileTest, size})
+	testworkload = append(testworkload, test{"server", "put", "http://127.0.0.1:4244/", "key0", fileTest, size})
+	testworkload = append(testworkload, test{"server", "get", "http://127.0.0.1:4244/", "key0", fileTest, size})
+	testworkload = append(testworkload, test{"server", "del", "http://127.0.0.1:4244/", "key0", fileTest, size})
+
+	client := CustomClient(100) // HTTP client
+	var errors int
 
 	// Execute use cases
 	for _, cTest := range testworkload {
-		keysGenerated, throughput := performWorkload(
-			cTest.hdType, cTest.operation, cTest.baseurl, cTest.keys, cTest.file, cTest.fileSize)
+		opRequest := OpKey(cTest.hdType, cTest.operation, cTest.key, cTest.file, cTest.fileSize, cTest.baseurl)
+		res, err := client.Do(opRequest)
 
-		log.Println("keys=", cTest.keys, "throughput=", throughput)
-
-		if keysGenerated == nil {
-			t.Error("expected:", cTest.keys, "found:", keysGenerated)
+		if err != nil {
+			log.Fatal("err=", err)
 		}
+		if res.StatusCode >= 300 {
+			log.Println("status code=", res.StatusCode, "res=", res)
+			errors++
+		}
+
 	}
 }
