@@ -24,22 +24,22 @@ type key struct {
 }
 
 type listGroups struct {
-	Groups []string `json: "groups"`
+	Groups []string `json:"groups"`
 }
 
+// CustomClient Customize the Transport to have larger connection pool
 func CustomClient(maxConnections int) *http.Client {
-	// Customize the Transport to have larger connection pool
 	defaultRoundTripper := http.DefaultTransport
 	defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
 	if !ok {
 		panic(fmt.Sprintf("defaultRoundTripper not an *http.Transport"))
 	}
 	// dereference it to get a copy of the struct that the pointer points to
-	defaultTransport := *defaultTransportPointer
+	defaultTransport := defaultTransportPointer
 	defaultTransport.MaxIdleConns = 100
 	defaultTransport.MaxIdleConnsPerHost = 100
 
-	client := &http.Client{Transport: &defaultTransport}
+	client := &http.Client{Transport: defaultTransport}
 
 	return client
 }
