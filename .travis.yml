@@ -2,3 +2,6 @@ language: go
 
 before_script:
   - go vet ./...
+os:
+  - linux
+dist: xenial
