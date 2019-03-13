@@ -2,9 +2,21 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"testing"
 )
+
+type MockClient struct {
+	DoFunc func(req *http.Request) (*http.Response, error)
+}
+
+func (m *MockClient) Do(req *http.Request) (*http.Response, error) {
+	if m.DoFunc != nil {
+		return m.DoFunc(req)
+	}
+	return &http.Response{}, nil
+}
 
 func TestOpKey(t *testing.T) {
 
@@ -28,7 +40,14 @@ func TestOpKey(t *testing.T) {
 	testworkload = append(testworkload, test{"server", "get", "http://127.0.0.1:4244/", "key0", fileTest, size})
 	testworkload = append(testworkload, test{"server", "del", "http://127.0.0.1:4244/", "key0", fileTest, size})
 
-	client := CustomClient(100) // HTTP client
+	// client := CustomClient(100) // HTTP client
+	client := &MockClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusAccepted,
+			}, nil
+		},
+	}
 	var errors int
 
 	// Execute use cases
@@ -39,8 +58,9 @@ func TestOpKey(t *testing.T) {
 		if err != nil {
 			log.Fatal("err=", err)
 		}
+		log.Println(res, err)
 		if res.StatusCode >= 300 {
-			log.Println("status code=", res.StatusCode, "res=", res)
+			log.Fatal("status code=", res.StatusCode, "res=", res)
 			errors++
 		}
 
