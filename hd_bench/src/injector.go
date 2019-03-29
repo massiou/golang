@@ -54,6 +54,7 @@ func performWorkload(
 		for _, key := range keys {
 			// Build request
 			glog.V(2).Info(operation, " key: ", key, " on ", baseURL)
+
 			opRequest := OpKey(hdType, operation, key, payloadFile, size, baseURL)
 			res, err := client.Do(opRequest)
 
@@ -67,9 +68,10 @@ func performWorkload(
 
 			// Compare PUT and GET answer
 			if operation == "get" {
-				comparison := compareGetPut(payloadFile, res)
+				comparison, resp := compareGetPut(payloadFile, res)
 				if comparison == false {
-					log.Fatal("GET response body different from original PUT, expected:", payloadFile)
+					log.Println("GET response body different from original PUT, expected:", payloadFile)
+					log.Fatal("Response content length=", len(resp))
 				}
 			} else {
 				io.Copy(ioutil.Discard, res.Body)
@@ -99,9 +101,6 @@ func getThroughput(start time.Time, size int) float64 {
 	var throughput float64
 	elapsed := float64(time.Since(start)) / math.Pow10(9)
 
-	log.Println(elapsed)
-	log.Println(size)
-
 	if elapsed != 0 {
 		// in Mo/s
 		throughput = float64(size) / elapsed
@@ -111,7 +110,7 @@ func getThroughput(start time.Time, size int) float64 {
 	return throughput
 }
 
-func compareGetPut(file string, res *http.Response) bool {
+func compareGetPut(file string, res *http.Response) (bool, string) {
 	// Convert payloadFile into string for GET comparisons
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -123,8 +122,9 @@ func compareGetPut(file string, res *http.Response) bool {
 	if err != nil {
 		log.Fatal(err)
 	}
+	strResp := string(responseData)
 	// Return comparison status
-	return string(responseData) == strData
+	return strResp == strData, strResp
 }
 
 func getFileSize(path string) int {
