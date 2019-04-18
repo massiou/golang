@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,7 +19,7 @@ import (
 
 // Initialize arguments
 var hdType = flag.String("hd-type", "server", "Choose between hyperdrive 'server' or 'client'")
-var payload = flag.String("payload-file", "/etc/hosts", "payload file")
+var payloads = flag.String("payload-files", "/etc/hosts /usr/bin/gdb", "payload files")
 var nrinstances = flag.Int("nrinstances", 1, "number of HD clients/servers")
 var nrkeys = flag.Int("nrkeys", 1, "number of keys per goroutine")
 var tcKind = flag.String("tc-kind", "", "traffic control kind")
@@ -35,7 +36,7 @@ func performWorkload(
 	operations string, // PUT / GET / DELETE
 	baseURL string,
 	keys []string, // list of keys
-	payloadFile string,
+	payloadFiles []string,
 	size int,
 	chanThrpt chan float64,
 	wg *sync.WaitGroup) {
@@ -50,10 +51,11 @@ func performWorkload(
 
 	for _, operation := range opArray {
 		errors = 0
-
 		// Loop on all keys
 		for _, key := range keys {
 			// Build request
+			randIdx := rand.Int() % len(payloadFiles)
+			payloadFile := payloadFiles[randIdx]
 			hdReq := hdRequest{hdType, operation, key, payloadFile, size, baseURL}
 			opRequest := OpKey(hdReq)
 			res, err := client.Do(opRequest)
@@ -142,20 +144,20 @@ func mainFunc(
 	operations string,
 	baseserver string,
 	nrkeys int,
-	payloadFile string,
+	payloadFiles []string,
 	wgMain *sync.WaitGroup,
 	chanThrpt chan float64,
 	workers int) {
 
 	var wgWorkload sync.WaitGroup
-	size := getFileSize(payloadFile)
-
+	//size := getFileSize(payloadFile)
+	size := 0
 	for i := 0; i < workers; i++ {
 		// generate nrkeys random keys
 		keys := GenerateKeys(hdType, nrkeys)
 
 		wgWorkload.Add(1)
-		go performWorkload(hdType, operations, baseserver, keys, payloadFile, size, chanThrpt, &wgWorkload)
+		go performWorkload(hdType, operations, baseserver, keys, payloadFiles, size, chanThrpt, &wgWorkload)
 	}
 
 	wgWorkload.Wait()
@@ -165,17 +167,19 @@ func mainFunc(
 func main() {
 	var wgMain sync.WaitGroup
 	chanThrpt := make(chan float64)
-	start := time.Now()
+	//start := time.Now()
 
 	// Parse command-line arguments
 	flag.Parse()
+
+	files := strings.Split(*payloads, " ")
 
 	// Launch goroutines in a loop
 	for nri := 0; nri < *nrinstances; nri++ {
 		port := *basePort + nri
 		baseURL := "http://" + *ipaddr + ":" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
-		go mainFunc(*hdType, *operations, baseURL, *nrkeys, *payload, &wgMain, chanThrpt, *nrworkers)
+		go mainFunc(*hdType, *operations, baseURL, *nrkeys, files, &wgMain, chanThrpt, *nrworkers)
 	}
 	go func() {
 		defer close(chanThrpt)
@@ -192,10 +196,10 @@ func main() {
 		idx++
 	}
 
-	totalSize := (*nrworkers) * (*nrkeys) * getFileSize(*payload)
-	finalThr := getThroughput(start, totalSize)
+	//totalSize := (*nrworkers) * (*nrkeys) * getFileSize(*payload)
+	//finalThr := getThroughput(start, totalSize)
 
-	log.Println("Total throughput:", finalThr/math.Pow10(6), "Mo/s")
+	//log.Println("Total throughput:", finalThr/math.Pow10(6), "Mo/s")
 
 	// Delete Traffic Control
 	if *tcKind != "" && *tcOptions != "" && *tcPort != 0 {
