@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -56,6 +57,8 @@ func performWorkload(
 			// Build request
 			randIdx := rand.Int() % len(payloadFiles)
 			payloadFile := payloadFiles[randIdx]
+			fmt.Println(payloadFile)
+			size := getFileSize(payloadFile)
 			hdReq := hdRequest{hdType, operation, key, payloadFile, size, baseURL}
 			opRequest := OpKey(hdReq)
 			res, err := client.Do(opRequest)
@@ -174,6 +177,8 @@ func main() {
 
 	files := strings.Split(*payloads, " ")
 
+	fmt.Println(files)
+	fmt.Println(files[0])
 	// Launch goroutines in a loop
 	for nri := 0; nri < *nrinstances; nri++ {
 		port := *basePort + nri
