@@ -26,21 +26,22 @@ func TestOpKey(t *testing.T) {
 	size := int(fi.Size())
 
 	type test struct {
-		hdType      string
-		operation   string
-		baseurl     string
-		key         string
-		file        string
-		fileSize    int
+		hdReq       hdRequest
 		expectedRes int
 	}
 
 	// Generate use cases for server
 	var testworkload []test
-	testworkload = append(testworkload, test{"server", "put", "http://127.0.0.1:4244/", "key0", fileTest, size, http.StatusOK})
-	testworkload = append(testworkload, test{"server", "get", "http://127.0.0.1:4244/", "key0", fileTest, size, http.StatusOK})
-	testworkload = append(testworkload, test{"server", "del", "http://127.0.0.1:4244/", "key0", fileTest, size, http.StatusOK})
-	testworkload = append(testworkload, test{"client", "put", "http://127.0.0.1:4244/", "key0", fileTest, size, http.StatusOK})
+
+	hdServerPut := hdRequest{"server", "put", "key0", fileTest, size, "http://127.0.0.1:4244/"}
+	hdServerGet := hdRequest{"server", "get", "key0", fileTest, size, "http://127.0.0.1:4244/"}
+	hdServerDel := hdRequest{"server", "del", "key0", fileTest, size, "http://127.0.0.1:4244/"}
+	hdClientPut := hdRequest{"client", "put", "key0", fileTest, size, "http://127.0.0.1:4244/"}
+
+	testworkload = append(testworkload, test{hdServerPut, http.StatusOK})
+	testworkload = append(testworkload, test{hdServerGet, http.StatusOK})
+	testworkload = append(testworkload, test{hdServerDel, http.StatusOK})
+	testworkload = append(testworkload, test{hdClientPut, http.StatusOK})
 
 	client := &MockClient{
 		DoFunc: func(req *http.Request) (*http.Response, error) {
@@ -53,7 +54,7 @@ func TestOpKey(t *testing.T) {
 
 	// Execute use cases
 	for _, cTest := range testworkload {
-		opRequest := OpKey(cTest.hdType, cTest.operation, cTest.key, cTest.file, cTest.fileSize, cTest.baseurl)
+		opRequest := OpKey(cTest.hdReq)
 		res, err := client.Do(opRequest)
 
 		if err != nil {

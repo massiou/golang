@@ -27,6 +27,21 @@ type listGroups struct {
 	Groups []string `json:"groups"`
 }
 
+type hdRequest struct {
+	hdType  string // server or client
+	request string
+	key     string
+	file    string
+	size    int
+	baseURL string
+}
+
+func (hdReq hdRequest) String() string {
+	return fmt.Sprintf(
+		"type:%s, req:%s, key:%s, file:%s, size:%d, url:%s",
+		hdReq.hdType, hdReq.request, hdReq.key, hdReq.file, hdReq.size, hdReq.baseURL)
+}
+
 // CustomClient Customize the Transport to have larger connection pool
 func CustomClient(maxConnections int) *http.Client {
 	defaultRoundTripper := http.DefaultTransport
@@ -62,32 +77,27 @@ func GenerateKey(length int) string {
 }
 
 // OpKey PUT/GET/DELETE function
-func OpKey(
-	hdType string, // server or client
-	request string,
-	key string,
-	payloadFile string,
-	size int,
-	baseURL string) *http.Request {
+func OpKey(hdReq hdRequest) *http.Request {
 
-	payload, _ := ioutil.ReadFile(payloadFile)
+	payload, _ := ioutil.ReadFile(hdReq.file)
 	data := strings.NewReader(string(payload))
 
 	req := &http.Request{}
 	var err error
-	uri := ""
 
-	switch hdType {
+	log.Println(hdReq)
+
+	switch hdReq.hdType {
 	case "server":
-		req, err = opKeyServer(request, key, baseURL, data, size)
+		req, err = opKeyServer(hdReq.request, hdReq.key, hdReq.baseURL, data, hdReq.size)
 	case "client":
-		req, err = opKeyClient(request, key, baseURL, data, size)
+		req, err = opKeyClient(hdReq.request, hdReq.key, hdReq.baseURL, data, hdReq.size)
 	default:
-		panic("hd-type must be in {server, client}, found: " + hdType)
+		panic("hd-type must be in {server, client}, found: " + hdReq.hdType)
 	}
 
 	if err != nil {
-		log.Fatal(request, " Key, uri=", uri, "error:", err)
+		log.Fatal("error:", err)
 	}
 
 	return req

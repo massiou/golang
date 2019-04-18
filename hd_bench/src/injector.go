@@ -50,12 +50,12 @@ func performWorkload(
 
 	for _, operation := range opArray {
 		errors = 0
+
 		// Loop on all keys
 		for _, key := range keys {
 			// Build request
-			glog.V(2).Info(operation, " key: ", key, " on ", baseURL)
-
-			opRequest := OpKey(hdType, operation, key, payloadFile, size, baseURL)
+			hdReq := hdRequest{hdType, operation, key, payloadFile, size, baseURL}
+			opRequest := OpKey(hdReq)
 			res, err := client.Do(opRequest)
 
 			if err != nil {
