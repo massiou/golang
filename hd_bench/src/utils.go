@@ -21,10 +21,20 @@ type hdRequest struct {
 	baseURL string
 }
 
+type fileInfo struct {
+	payload string
+	size    int
+}
+
 func (hdReq hdRequest) String() string {
 	return fmt.Sprintf(
 		"type:%s, req:%s, key:%s, file:%s, size:%d, url:%s",
 		hdReq.hdType, hdReq.request, hdReq.key, hdReq.file, hdReq.size, hdReq.baseURL)
+}
+
+func (finfo fileInfo) String() string {
+	return fmt.Sprintf(
+		"payload: %s, size (MB): %d", finfo.payload, finfo.size)
 }
 
 // CustomClient Customize the Transport to have larger connection pool

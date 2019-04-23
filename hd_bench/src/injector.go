@@ -28,11 +28,6 @@ var basePort = flag.Int("port", 4244, "base server port")
 var ipaddr = flag.String("ip", "127.0.0.1", "hd base IP address (server or client)")
 var nrworkers = flag.Int("w", 10, "number of injector workers ")
 
-type fileInfo struct {
-	payload string
-	size    int
-}
-
 // performWorkload
 func performWorkload(
 	hdType string, // server or client
@@ -69,7 +64,7 @@ func performWorkload(
 				size = keysMap[key].size
 				payloadFile = keysMap[key].payload
 			}
-
+			log.Println(key, keysMap[key])
 			hdReq := hdRequest{hdType, operation, key, payloadFile, size, baseURL}
 			opRequest := OpKey(hdReq)
 			res, err := client.Do(opRequest)
