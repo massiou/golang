@@ -28,6 +28,11 @@ var basePort = flag.Int("port", 4244, "base server port")
 var ipaddr = flag.String("ip", "127.0.0.1", "hd base IP address (server or client)")
 var nrworkers = flag.Int("w", 10, "number of injector workers ")
 
+type fileInfo struct {
+	payload string
+	size    int
+}
+
 // performWorkload
 func performWorkload(
 	hdType string, // server or client
@@ -44,15 +49,27 @@ func performWorkload(
 	var keysGenerated []string
 	var totalSize int
 	var errors int
+	keysMap := make(map[string]fileInfo)
 
 	for _, operation := range opArray {
 		errors = 0
+		var payloadFile string
+		var size int
 		// Loop on all keys
 		for _, key := range keys {
 			// Build request
-			randIdx := rand.Int() % len(payloadFiles)
-			payloadFile := payloadFiles[randIdx]
-			size := getFileSize(payloadFile)
+			if operation == "put" {
+				// Store key info for potential GET/DELETE
+				randIdx := rand.Int() % len(payloadFiles)
+				payloadFile = payloadFiles[randIdx]
+				size = getFileSize(payloadFile)
+				keysMap[key] = fileInfo{payloadFile, size}
+			} else {
+				// Retrieve key info
+				size = keysMap[key].size
+				payloadFile = keysMap[key].payload
+			}
+
 			hdReq := hdRequest{hdType, operation, key, payloadFile, size, baseURL}
 			opRequest := OpKey(hdReq)
 			res, err := client.Do(opRequest)
@@ -69,7 +86,7 @@ func performWorkload(
 			if operation == "get" {
 				comparison, resp := compareGetPut(payloadFile, res)
 				if comparison == false {
-					log.Println("GET response body different from original PUT, expected:", payloadFile)
+					log.Println(key, " GET response body different from original PUT, expected:", payloadFile)
 					log.Fatal("Response content length=", len(resp))
 				}
 			} else {
@@ -103,7 +120,6 @@ func getThroughput(start time.Time, size int) float64 {
 		// in Mo/s
 		throughput = float64(size) / elapsed
 	}
-	log.Println("Throughput: ", throughput, " Mo/s")
 	return throughput
 }
 

@@ -191,7 +191,6 @@ func DelKeyClient(key, baseclient string) *http.Request {
 	if err != nil {
 		panic(err)
 	}
-
 	return req
 }
 
