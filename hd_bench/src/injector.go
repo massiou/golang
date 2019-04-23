@@ -43,11 +43,10 @@ func performWorkload(
 
 	var keysGenerated []string
 	var totalSize int
-	var errors int
+	errors := make(map[string]int)
 	keysMap := make(map[string]fileInfo)
 
 	for _, operation := range opArray {
-		errors = 0
 		var payloadFile string
 		var size int
 		// Loop on all keys
@@ -74,7 +73,7 @@ func performWorkload(
 			}
 			if res.StatusCode >= 300 {
 				log.Println("status code=", res.StatusCode, "res=", res)
-				errors++
+				errors[key] = res.StatusCode
 			}
 
 			// Compare PUT and GET answer
@@ -104,7 +103,7 @@ func performWorkload(
 	}
 	wg.Done()
 	chanSizes <- totalSize
-	log.Println("nr errors=", errors)
+	log.Println("errors=", errors)
 }
 
 func getThroughput(start time.Time, size int) float64 {
