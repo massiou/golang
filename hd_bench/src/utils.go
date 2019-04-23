@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,20 +11,6 @@ import (
 	"strings"
 	"time"
 )
-
-type listKeys struct {
-	Keys []key `json:"keys"`
-}
-
-// Key server struct
-type key struct {
-	Key     string `json:"key"`
-	Version int    `json:"version"`
-}
-
-type listGroups struct {
-	Groups []string `json:"groups"`
-}
 
 type hdRequest struct {
 	hdType  string // server or client
@@ -72,7 +57,6 @@ func GenerateKey(length int) string {
 		index := rand.Intn(len(hex))
 		ret = ret + string(hex[index])
 	}
-	log.Println("Create key: ", ret)
 	return ret
 }
 
@@ -155,56 +139,6 @@ func opKeyClient(
 		panic("Operation: '" + request + "' not available")
 	}
 	return req, err
-}
-
-// getKeysIndex for hyperdrive server
-func getKeysIndex(client *http.Client, baseserver string) listKeys {
-	var keys listKeys
-
-	uri := baseserver + "info/index/key/list/"
-
-	req, _ := http.NewRequest(http.MethodGet, uri, nil)
-
-	req.Header.Set("Accept", "application/json")
-
-	res, err := client.Do(req)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer res.Body.Close()
-
-	body, _ := ioutil.ReadAll(res.Body)
-
-	json.Unmarshal(body, &keys)
-
-	return keys
-}
-
-// getGroupsIndex for hyperdrive server
-func getGroupsIndex(client *http.Client, baseserver string) listGroups {
-	var groups listGroups
-
-	uri := baseserver + "info/index/group/list/"
-
-	req, _ := http.NewRequest(http.MethodGet, uri, nil)
-
-	req.Header.Set("Accept", "application/json")
-
-	res, err := client.Do(req)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer res.Body.Close()
-
-	body, _ := ioutil.ReadAll(res.Body)
-
-	json.Unmarshal(body, &groups)
-
-	return groups
 }
 
 // GetKeyClient hyperdrive client
