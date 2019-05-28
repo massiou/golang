@@ -63,7 +63,7 @@ func performWorkload(
 				size = keysMap[key].size
 				payloadFile = keysMap[key].payload
 			}
-			log.Println(key, keysMap[key])
+			log.Println("keys info:", key, keysMap[key])
 			hdReq := hdRequest{hdType, operation, key, payloadFile, size, baseURL}
 			opRequest := OpKey(hdReq)
 			res, err := client.Do(opRequest)
@@ -144,7 +144,7 @@ func getFileSize(path string) int {
 	return int(fi.Size())
 }
 
-func mainFunc(
+func multiWork(
 	hdType string,
 	operations string,
 	baseserver string,
@@ -182,7 +182,7 @@ func main() {
 		port := *basePort + nri
 		baseURL := "http://" + *ipaddr + ":" + strconv.Itoa(port) + "/"
 		wgMain.Add(1)
-		go mainFunc(*hdType, *operations, baseURL, *nrkeys, files, &wgMain, chanSizes, *nrworkers)
+		go multiWork(*hdType, *operations, baseURL, *nrkeys, files, &wgMain, chanSizes, *nrworkers)
 	}
 	go func() {
 		defer close(chanSizes)

@@ -276,7 +276,5 @@ func DeleteTrafficRules() bool {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return true
-
 }
